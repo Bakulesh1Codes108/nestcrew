@@ -95,7 +95,7 @@ def test_previews_show_affected_files(home):
 def test_delegate_to_file_clerk_shares_approvals(home):
     asked, seen = [], []
     m = FakeModel([
-        J(action="delegate", input={"specialist": "file_clerk", "task": "copy pdfs from Desktop/BIRAC to Documents"}),
+        J(action="delegate", input={"specialist": "file_clerk", "task": "sort the pdfs in Desktop/BIRAC"}),
         J(action="copy_files", input={"source": "Desktop/BIRAC", "destination": "Documents", "pattern": "*.pdf"}),
         J(action="final", answer="copied 2"),
         J(action="final", answer="All done")])
@@ -107,6 +107,16 @@ def test_delegate_to_file_clerk_shares_approvals(home):
     assert "File clerk" in sub_prompt and "delegate" not in sub_prompt.split("Tools:")[1]
 
 
+def test_delegated_plain_file_command_uses_quick_plan(home):
+    m = FakeModel([J(action="delegate", input={"specialist": "file_clerk",
+                                               "task": "copy pdfs from Desktop/BIRAC to Documents"}),
+                   J(action="final", answer="All done")])
+    asked = []
+    assert Agent().run(m, "organise my pdfs", gate=Gate(ask_fn=lambda r: asked.append(r) or "once")) == "All done"
+    assert len(m.seen) == 2 and asked[0]["agent"] == "File clerk"            # specialist needed no model call
+    assert len(list((home / "Documents").iterdir())) == 2
+
+
 def test_specialist_cannot_delegate_again(home):
     m = FakeModel([J(action="delegate", input={"specialist": "writer", "task": "x"}),
                    J(action="delegate", input={"specialist": "writer", "task": "y"}),
@@ -114,3 +124,39 @@ def test_specialist_cannot_delegate_again(home):
     a = Agent(tools=["delegate"])
     a.run(m, "t", gate=Gate(ask_fn=lambda r: "once"))
     assert "not allowed" in m.seen[2][-1]["content"]                          # writer has no delegate tool
+
+
+@pytest.mark.parametrize("task,tool_name,src,dst,pattern", [
+    ("MOVE ALL FILE FROM BIRAC TO BIRAC2 ON DESKTOP", "move_files", "Desktop/BIRAC", "Desktop/BIRAC2", "*"),
+    ('Copy all files from "NestCrew test/BIRAC" on my Desktop into a new folder "NestCrew test/BIRAC copy"',
+     "copy_files", "Desktop/NestCrew test/BIRAC", "Desktop/NestCrew test/BIRAC copy", "*"),
+    ("move the pdfs from Downloads to Documents/Invoices", "move_files", "Downloads", "Documents/Invoices", "*.pdf"),
+    ("copy *.xlsx from Downloads into Documents/Reports", "copy_files", "Downloads", "Documents/Reports", "*.xlsx"),
+])
+def test_quick_plan_reads_common_file_commands(task, tool_name, src, dst, pattern):
+    plan = rpa.quick_plan(task)
+    assert plan[0] == {"tool": "list_folder", "input": {"path": src}}
+    assert plan[1] == {"tool": tool_name, "input": {"source": src, "destination": dst, "pattern": pattern}}
+
+
+@pytest.mark.parametrize("task", ["Summarise the pdf in Downloads", "copy the totals from report into a new sheet",
+                                  "move files from A to A", "write an excel of my expenses"])
+def test_quick_plan_leaves_other_tasks_to_the_model(task):
+    assert rpa.quick_plan(task) is None
+
+
+def test_quick_plan_runs_without_the_model_and_still_asks(home):
+    asked = []
+    model = FakeModel([])                                  # would fail if the model were called
+    a = Agent()
+    out = a.run(model, "copy the pdfs from BIRAC to BIRAC copy on my desktop",
+                gate=Gate(ask_fn=lambda r: asked.append(r["tool"]) or "once"))
+    assert asked == ["copy_files"] and "Copied 2 file(s)" in out
+    assert sorted(p.name for p in (home / "Desktop" / "BIRAC copy").iterdir()) == ["a.pdf", "b.pdf"]
+    assert [e["tool"] for e in a.events if e["type"] == "tool"] == ["list_folder", "copy_files"]
+
+
+def test_quick_plan_stops_when_folder_is_missing(home):
+    out = Agent().run(FakeModel([]), "move all files from NOPE to BIRAC2 on desktop",
+                      gate=Gate(ask_fn=lambda r: "once"))
+    assert out.startswith("I stopped") and not (home / "Desktop" / "BIRAC2").exists()

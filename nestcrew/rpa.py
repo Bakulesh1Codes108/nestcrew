@@ -21,6 +21,7 @@ import csv
 import fnmatch
 import json
 import os
+import re
 import shutil
 import time
 from pathlib import Path
@@ -428,3 +429,69 @@ def delegate(specialist: str, task: str) -> str:
     sub._depth = ctx.get("depth", 0) + 1
     answer = sub.run(ctx["provider"], task, on_event=emit, gate=ctx.get("gate"))
     return f"{spec['role']} finished: {answer}"
+
+
+# --------------------------------------------------------------- quick plans --
+# Tiny models often misread plain file commands ("copy all files from A to B").
+# These common shapes are turned into exact tool steps; approvals still apply.
+_ROOT_WORDS = {"desktop": "Desktop", "documents": "Documents", "docs": "Documents",
+               "downloads": "Downloads", "pictures": "Pictures", "photos": "Pictures",
+               "videos": "Videos", "music": "Music", "workspace": "workspace"}
+_KINDS = {"pdf": "*.pdf", "pdfs": "*.pdf", "excel": "*.xlsx", "excels": "*.xlsx", "xlsx": "*.xlsx",
+          "csv": "*.csv", "csvs": "*.csv", "word": "*.docx", "docx": "*.docx", "txt": "*.txt",
+          "text": "*.txt", "jpg": "*.jpg", "jpgs": "*.jpg", "png": "*.png", "pngs": "*.png",
+          "mp4": "*.mp4", "zip": "*.zip", "pptx": "*.pptx", "powerpoint": "*.pptx"}
+
+_TRANSFER = re.compile(
+    r"^\s*(?:please\s+)?(?P<verb>copy|move|transfer)\s+"
+    r"(?:(?:all|every)\s+)?(?:(?:the|my)\s+)?"
+    r"(?:(?P<kind>\*\.\w+|\.?\w+)\s+)?(?:files?|documents?|items?|everything|contents?)?\s*"
+    r"(?:from|in|inside)\s+(?:the\s+)?(?:folder\s+)?(?P<src>.+?)\s+"
+    r"(?:to|into|in\s?to)\s+(?:(?:a|the)\s+)?(?:new\s+)?(?:folder\s+)?(?:called\s+|named\s+)?(?P<dst>.+?)"
+    r"(?:\s+(?:on|in)\s+(?:my\s+|the\s+)?(?P<where>desktop|documents|downloads|pictures|videos|music|workspace))?"
+    r"\s*[.!]?\s*$", re.I)
+_MKDIR = re.compile(
+    r"^\s*(?:please\s+)?(?:create|make)\s+(?:a\s+)?(?:new\s+)?folder\s+(?:called\s+|named\s+)?(?P<dst>.+?)"
+    r"(?:\s+(?:on|in)\s+(?:my\s+|the\s+)?(?P<where>desktop|documents|downloads|pictures|videos|music|workspace))?"
+    r"\s*[.!]?\s*$", re.I)
+
+
+def _clean_path(text: str, where: str | None) -> str:
+    p = text.strip().strip("\"'`").strip().replace("\\", "/")
+    p = re.sub(r"^(?:the\s+|my\s+)?(?:folder\s+)?", "", p, flags=re.I).strip("\"' ")
+    first = p.split("/")[0].lower()
+    if first in _ROOT_WORDS:
+        return _ROOT_WORDS[first] + p[len(first):]
+    if ":" in p[:3] or p.startswith("/") or p.startswith("~"):
+        return p
+    return f"{_ROOT_WORDS[where.lower()]}/{p}" if where else p
+
+
+def quick_plan(task: str) -> list[dict] | None:
+    """Exact steps for common file commands, or None when the model should plan."""
+    text = " ".join(task.split())
+    # "... on my Desktop ..." anywhere in the sentence applies to both folders
+    loc = re.search(r"\s+on\s+(?:my\s+|the\s+)?(desktop|documents|downloads|pictures|videos|music)\b",
+                    text, re.I)
+    if loc:
+        text = (text[:loc.start()] + text[loc.end():]).strip()
+    m = _TRANSFER.match(text)
+    if m:
+        kind = (m.group("kind") or "").lower().lstrip(".")
+        if kind in ("all", "every", "the", "my", "files", "file"):
+            kind = ""
+        pattern = m.group("kind") if (m.group("kind") or "").startswith("*.") else _KINDS.get(kind, "*")
+        if kind and pattern == "*" and kind not in _KINDS:
+            return None                               # an unknown word: let the model read it
+        where = m.group("where") or (loc.group(1) if loc else None)
+        src, dst = _clean_path(m.group("src"), where), _clean_path(m.group("dst"), where)
+        if not src or not dst or src == dst:
+            return None
+        tool_name = "move_files" if m.group("verb").lower() == "move" else "copy_files"
+        return [{"tool": "list_folder", "input": {"path": src}},
+                {"tool": tool_name, "input": {"source": src, "destination": dst, "pattern": pattern}}]
+    m = _MKDIR.match(text)
+    if m:
+        where = m.group("where") or (loc.group(1) if loc else None)
+        return [{"tool": "make_folder", "input": {"path": _clean_path(m.group("dst"), where)}}]
+    return None

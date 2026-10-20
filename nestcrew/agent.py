@@ -111,8 +111,34 @@ class Agent:
                   "lesson_id": self.last_lesson_id})
             return answer
 
+        def do_tool(step, action, args, thought=""):
+            if action not in allowed:
+                result = f"Error: tool '{action}' is not allowed. Allowed: {', '.join(sorted(allowed)) or 'none'}"
+            else:
+                ok, why = gate.check(self.role, action, args)
+                result = redact(run_tool(action, args)) if ok else f"Error: {why}"
+                if not ok and "denied" in why:
+                    emit({"type": "denied", "agent": self.role, "tool": action})
+            emit({"type": "tool", "agent": self.role, "step": step, "thought": thought,
+                  "tool": action, "input": args, "result": result[:1500]})
+            return result
+
         audit(run=gate.run_id, agent=self.role, event="start", task=task[:300],
               model=provider.label())
+
+        # Common file commands get exact steps instead of a small model's guess.
+        from .rpa import quick_plan
+        plan = quick_plan(task) if not images else None
+        if plan and all(st["tool"] in allowed for st in plan):
+            audit(run=gate.run_id, agent=self.role, event="quick_plan", steps=[st["tool"] for st in plan])
+            result = ""
+            for i, st in enumerate(plan, 1):
+                gate.check_stop()
+                result = do_tool(i, st["tool"], st["input"], "Standard file task - exact steps")
+                if result.startswith("Error") or result.startswith("No files"):
+                    return finish(f"I stopped: {result.removeprefix('Error: ')}")
+            return finish(result)
+
         for step in range(1, steps + 1):
             gate.check_stop()
             raw = provider.chat(messages, json_mode=True)
@@ -131,15 +157,7 @@ class Agent:
                 args = {k: v for k, v in data.items() if k not in ("thought", "action", "answer")}
             if not isinstance(args, dict):
                 args = {}
-            if action not in allowed:
-                result = f"Error: tool '{action}' is not allowed. Allowed: {', '.join(sorted(allowed)) or 'none'}"
-            else:
-                ok, why = gate.check(self.role, action, args)
-                result = redact(run_tool(action, args)) if ok else f"Error: {why}"
-                if not ok and "denied" in why:
-                    emit({"type": "denied", "agent": self.role, "tool": action})
-            emit({"type": "tool", "agent": self.role, "step": step, "thought": data.get("thought", ""),
-                  "tool": action, "input": args, "result": result[:1500]})
+            result = do_tool(step, action, args, data.get("thought", ""))
             messages.append({"role": "assistant", "content": json.dumps(data)})
             messages.append({"role": "user", "content":
                              f"Tool result:\n{wrap_untrusted(action, result)}\n\nContinue."})
