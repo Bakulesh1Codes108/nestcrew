@@ -317,12 +317,14 @@ function newId(){ return "s"+Date.now().toString(36)+Math.random().toString(36).
 function toast(t){ const d=$("#toast"); d.textContent=t; d.style.display="block"; clearTimeout(d._t); d._t=setTimeout(()=>d.style.display="none",2600); }
 async function api(path,body){ let r; try{ r=await fetch(path,body===undefined?{headers:H(false)}:{method:"POST",headers:H(),body:JSON.stringify(body)}); }
   catch(e){ throw new Error("NestCrew isn't running — open it from your Desktop."); }
-  const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.detail||r.statusText); return j; }
+  const j=await r.json().catch(()=>({})); if(!r.ok){ staleToken(r,j); throw new Error(j.detail||r.statusText); } return j; }
+// NestCrew was restarted (new secret token): reload this window instead of saying it's not running.
+function staleToken(r,j){ if(r.status===403 && /token/.test((j&&j.detail)||"")){ toast("NestCrew restarted — reloading…"); setTimeout(()=>location.reload(),600); return true; } return false; }
 async function stream(url, body, onEv, signal){
   const isForm=body instanceof FormData;
   let r; try{ r=await fetch(url,{method:"POST",headers:H(!isForm),body:isForm?body:JSON.stringify(body),signal}); }
   catch(e){ if(e.name==="AbortError") throw e; status(); onEv({type:"error",text:"NestCrew isn't running — open it from your Desktop and try again."}); return; }
-  if(!r.ok){ const t=await r.json().catch(()=>({detail:r.statusText})); onEv({type:"error",text:t.detail}); return; }
+  if(!r.ok){ const t=await r.json().catch(()=>({detail:r.statusText})); if(staleToken(r,t)) return; onEv({type:"error",text:t.detail}); return; }
   const rd=r.body.getReader(), dec=new TextDecoder(); let buf="";
   for(;;){ const {value,done}=await rd.read(); if(done)break; buf+=dec.decode(value,{stream:true});
     let i; while((i=buf.indexOf("\n\n"))>=0){ const line=buf.slice(0,i); buf=buf.slice(i+2);
@@ -353,7 +355,7 @@ async function status(){
     if(!crews.length){ crews=s.crews; $("#crewsel").innerHTML=crews.map(c=>`<option value="${c.file}">${esc(c.name)}</option>`).join(""); renderCrewInputs(); }
     $("#down").style.display="none";
     $("#updbar").style.display=s.update_ready?"flex":"none";
-  }catch(e){ $("#net").textContent="NestCrew server not reachable"; $("#netdot").className="dot warn"; $("#down").style.display="flex"; return; }
+  }catch(e){ if(/token/.test(e.message)) return; $("#net").textContent="NestCrew server not reachable"; $("#netdot").className="dot warn"; $("#down").style.display="flex"; return; }
   try{ const b=await api("/api/brain");
     const names={laya:"Laya",kev:"Kev",openjev:"OpenJev",cribl:"Cribl decision"};
     $("#s1stat").textContent=names[b.engine]?(b.engine_up?`System 1: ${names[b.engine]} ✓`:`System 1: ${names[b.engine]} not running → ${b.system1?"MiniLM":"keywords"}`):(b.system1?"System 1: MiniLM":"System 1: keyword mode");
