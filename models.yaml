@@ -1,0 +1,188 @@
+# NestCrew model catalog.
+# Sizes are approximate (download = weights + vision encoder, RAM = while answering).
+# Add your own entry by copying one block. Backends:
+#   ollama   - pulled and run by Ollama (default; hf.co/... tags pull GGUFs from Hugging Face)
+#   llamacpp - a llama-server you start yourself (OpenAI-compatible, default http://127.0.0.1:8080)
+#   jan      - the free Jan app's Local API Server (http://127.0.0.1:1337/v1)
+#   lmstudio - LM Studio's local server (http://127.0.0.1:1234/v1)
+#   nanovlm  - Hugging Face's nanoVLM repo via its generate.py (experimental, needs PyTorch)
+
+models:
+  smolvlm2-256m:
+    name: SmolVLM2 256M
+    backend: ollama
+    tag: hf.co/ggml-org/SmolVLM2-256M-Video-Instruct-GGUF:Q8_0
+    params: 256M
+    download: ~0.3 GB
+    ram: ~0.6-1 GB
+    vision: true
+    tools: false
+    best_for: Quick screen captions, video frames, very old laptops
+    key_feature: Smallest practical VLM; reads frame sequences
+    limits: Short, simple answers; misreads small text; can't run agents
+
+  lfm2-vl-450m:
+    name: LFM2-VL 450M
+    backend: ollama
+    tag: hf.co/LiquidAI/LFM2-VL-450M-GGUF:Q8_0
+    params: 450M
+    download: ~0.5 GB
+    ram: ~1 GB
+    vision: true
+    tools: false
+    best_for: Fast image descriptions on CPU, batch photo tagging
+    key_feature: Built for on-device speed (Liquid AI)
+    limits: Weak on dense text and reasoning
+
+  smolvlm2-500m:
+    name: SmolVLM2 500M
+    backend: ollama
+    tag: hf.co/ggml-org/SmolVLM2-500M-Video-Instruct-GGUF:Q8_0
+    params: 500M
+    download: ~0.6 GB
+    ram: ~1-1.5 GB
+    vision: true
+    tools: false
+    best_for: Screenshots, UI reading, video summaries
+    key_feature: Best quality-per-MB of the tiny models
+    limits: Simple OCR only; no tool use
+
+  qwen3.5-0.8b:
+    name: Qwen3.5 0.8B
+    backend: ollama
+    tag: qwen3.5:0.8b
+    params: 0.8B
+    download: ~1 GB
+    ram: ~1.5-2.5 GB
+    vision: true
+    tools: true
+    best_for: Smallest model that is brain AND eyes - light agents that can see
+    key_feature: Vision + tool calling + thinking under 1B (2026)
+    limits: Weaker plans than 4B models; verify answers on important tasks
+
+  moondream:
+    name: Moondream 2
+    backend: ollama
+    tag: moondream:1.8b
+    params: 1.8B
+    download: 1.7 GB
+    ram: ~2.5-3 GB
+    vision: true
+    tools: false
+    best_for: General "what's in this image" questions, counting objects
+    key_feature: Robust visual Q&A for its size
+    limits: 2K context; short answers; older model
+
+  qwen3-vl-2b:
+    name: Qwen3-VL 2B
+    backend: ollama
+    tag: qwen3-vl:2b
+    params: 2B
+    download: ~2 GB
+    ram: ~3 GB
+    vision: true
+    tools: true
+    best_for: Reading text in screenshots, OCR, multilingual images
+    key_feature: Strongest small open VLM family; long context
+    limits: Slower than sub-1B models on CPU
+
+  granite-vision-2b:
+    name: Granite 3.2 Vision 2B
+    backend: ollama
+    tag: granite3.2-vision:2b
+    params: 2B
+    download: 2.4 GB
+    ram: ~3-3.5 GB
+    vision: true
+    tools: false
+    best_for: Documents, tables, charts, invoices, forms
+    key_feature: Trained for visual document understanding (IBM)
+    limits: Less chatty; not for general photos
+
+  gemma4-e4b:
+    name: Gemma 4 E4B
+    backend: ollama
+    tag: gemma4:e4b
+    params: ~4B effective
+    download: ~3-4 GB
+    ram: ~4-6 GB
+    vision: true
+    tools: true
+    best_for: The agent "brain" - planning, tool use, chat with images
+    key_feature: Vision + built-in tool calling
+    limits: Needs 16 GB RAM to be comfortable
+
+  qwen3-1.7b:
+    name: Qwen3 1.7B (text only)
+    backend: ollama
+    tag: qwen3:1.7b
+    params: 1.7B
+    download: ~1.4 GB
+    ram: ~2 GB
+    vision: false
+    tools: true
+    best_for: Light "brain" for 8 GB laptops - chat, planning, crews
+    key_feature: Small text model that follows the JSON tool format well
+    limits: Can't see images (pair it with a tiny vision model)
+
+  nanovlm-222m:
+    name: nanoVLM 222M (experimental)
+    backend: nanovlm
+    tag: lusxvr/nanoVLM-222M
+    params: 222M
+    download: ~0.9 GB + PyTorch (~2 GB)
+    ram: ~2-2.5 GB (PyTorch)
+    vision: true
+    tools: false
+    best_for: Learning how VLMs work; experiments
+    key_feature: Pure PyTorch, easy to read and fine-tune
+    limits: Educational - loose answers; heavier than SmolVLM2 256M at run time
+
+  jan-local:
+    name: Jan (your model)
+    backend: jan
+    tag: llama3.2-3b-instruct      # change to the model id shown in Jan's Local API Server
+    params: depends on model
+    download: managed in Jan
+    ram: depends on model
+    vision: false
+    tools: true
+    best_for: Using models you already downloaded in the free Jan app
+    key_feature: Jan's local OpenAI-compatible server (127.0.0.1:1337)
+    limits: Start Jan's Local API Server first; set the exact model id above
+
+  lmstudio-local:
+    name: LM Studio (your model)
+    backend: lmstudio
+    tag: your-model-id             # the model id LM Studio shows when its server is running
+    params: depends on model
+    download: managed in LM Studio
+    ram: depends on model
+    vision: false
+    tools: true
+    best_for: Using models you already have in LM Studio
+    key_feature: LM Studio's local server (127.0.0.1:1234)
+    limits: Start LM Studio's server first; set the exact model id above
+
+  all-minilm:
+    name: MiniLM embeddings (System 1)
+    backend: ollama
+    tag: all-minilm:22m
+    params: 22M
+    download: 46 MB
+    ram: ~0.1 GB
+    vision: false
+    tools: false
+    kind: embedding
+    best_for: System 1 - instant task routing, hints, finding similar past tasks
+    key_feature: Typed decisions with confidence, no text generation (open take on "System One" models like Jev)
+    limits: Only decides and compares - never writes answers
+
+# Which model does which job (change in the Models tab, `nestcrew models use`, or here).
+tasks:
+  chat: gemma4-e4b          # normal chat (images allowed)
+  agent: gemma4-e4b         # agents/crews: needs tool use -> pick a model with tools: true
+  screen: smolvlm2-500m     # look_at_screen tool and the `screen` command
+  video: smolvlm2-256m      # video frame-by-frame analysis
+  documents: granite-vision-2b   # invoices, forms, tables, charts
+  image: lfm2-vl-450m       # quick image captions/tagging (automations)

@@ -1,0 +1,19 @@
+name: Image Inspector
+description: Reads files in your workspace and plans actions. Pair with an image in the web UI's Agent mode for vision tasks.
+inputs: [goal]
+
+agents:
+  planner:
+    role: Planner
+    goal: Break the user's goal into 3-5 concrete steps.
+    tools: [current_time]
+  doer:
+    role: Executor
+    goal: Carry out the plan using the workspace files, then summarise what was done.
+    tools: [list_files, read_file, write_file, calculator]
+
+tasks:
+  - agent: planner
+    description: "Goal: {goal}. Write a short numbered plan."
+  - agent: doer
+    description: "Follow the plan for: {goal}. Save any result to the workspace."

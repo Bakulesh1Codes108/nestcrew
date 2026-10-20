@@ -1,0 +1,71 @@
+# NestCrew automations - jobs that run by themselves while NestCrew is open
+# (or with `nestcrew auto watch` in a terminal).
+#
+# Triggers (pick one per automation):
+#   watch: inbox/screenshots     -> runs for each NEW file dropped into workspace/inbox/screenshots
+#   pattern: "*.png,*.jpg"         (which files count; default: everything)
+#   daily: "09:00"               -> once a day at that time
+#   every_minutes: 60            -> repeatedly
+#
+# Actions:
+#   describe_image  - ask a vision model about each image   (uses the model for `task`)
+#   video           - frame-by-frame analysis + chart       (uses the `video` model)
+#   agent           - an agent with tools does `prompt`      ({file} = the new file's path)
+#   crew            - run a crew from crews/ with `inputs`
+#
+# Safety: nobody is there to click "Allow", so risky tools are DENIED unless you
+# list them under `allow:`. The command blocklist and workspace sandbox still apply.
+# Everything starts disabled - switch automations on in the app's Automations panel.
+
+automations:
+  - name: Screenshot notes
+    enabled: false
+    trigger: { watch: inbox/screenshots, pattern: "*.png,*.jpg,*.jpeg" }
+    action:
+      type: describe_image
+      task: screen
+      prompt: What app or page is this? List the key information and any error messages in 3 short bullets.
+      save_to: notes/screenshots.md
+
+  - name: Invoice reader
+    enabled: false
+    trigger: { watch: inbox/invoices, pattern: "*.png,*.jpg,*.jpeg" }
+    action:
+      type: describe_image
+      task: documents
+      prompt: "Extract as JSON: vendor, invoice_number, date, subtotal, tax, total, currency."
+      save_to: notes/invoices.md
+
+  - name: Photo tagger
+    enabled: false
+    trigger: { watch: inbox/photos, pattern: "*.png,*.jpg,*.jpeg,*.webp" }
+    action:
+      type: describe_image
+      task: image
+      prompt: Give one short caption, then 5 comma-separated tags.
+      save_to: notes/photo_tags.md
+
+  - name: Video inbox
+    enabled: false
+    trigger: { watch: inbox/videos, pattern: "*.mp4,*.mov,*.avi,*.mkv" }
+    action:
+      type: video
+      question: What is happening? How many people are visible?
+
+  - name: Morning report
+    enabled: false
+    trigger: { daily: "09:00" }
+    action:
+      type: crew
+      crew: research_writer
+      inputs: { topic: "today's plan: summarise notes/screenshots.md and notes/invoices.md" }
+    allow: [write_file]          # pre-approved for this automation only
+
+  - name: Inbox check
+    enabled: false
+    trigger: { every_minutes: 60 }
+    action:
+      type: agent
+      tools: [list_files, read_file, write_file]
+      prompt: Look in the inbox folders and write a short status list to notes/inbox_status.md.
+    allow: [write_file]

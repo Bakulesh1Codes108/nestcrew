@@ -1,0 +1,98 @@
+# NestCrew configuration
+# mode:
+#   local -> only the model on your laptop (fully offline)
+#   auto  -> local model first; if it fails AND you're online AND a key exists, fall back to cloud
+#   cloud -> always use the cloud provider below (needs internet + API key)
+mode: local
+
+local:
+  base_url: http://localhost:11434      # Ollama runs here
+  model: gemma4:e4b                     # small, sees images, can call tools (~3-4 GB)
+  fallback_model: qwen3-vl:2b           # lighter backup if RAM is tight
+  num_ctx: 4096                         # context window; lower = less RAM
+  keep_alive: 5m                        # unload model from RAM after 5 min idle
+  temperature: 0.3
+  json_mode: true                       # force JSON for agents (helps small models)
+
+# Paid cloud APIs are OPTIONAL: never used unless you add a key to .env AND pick them in the app.
+cloud:
+  preferred: anthropic                  # anthropic | gemini | xai | openai
+  # Model names change often - check each provider's docs and update here.
+  anthropic: { model: claude-sonnet-5-5 }
+  gemini:    { model: gemini-2.5-flash }
+  xai:       { model: grok-4 }
+  openai:    { model: gpt-4.1-mini }
+
+agent:
+  max_steps: 6                          # tool-use loop limit per agent
+  workspace: ./workspace                # agents can only read/write inside here
+  learn: true                           # remember successful runs and reuse them as guidance
+  lessons_to_recall: 2                  # how many past successes to show the agent
+
+media:
+  screenshots_dir: ./data/screenshots
+  keep_screenshots: false               # false = delete each screenshot right after it's analysed
+  image_max_side: 1024                  # shrink images/frames (saves RAM + time)
+  video_frame_every: 2                  # seconds between sampled frames
+  video_max_frames: 12                  # hard cap so long videos don't overload the laptop
+  keep_videos: false                    # delete uploaded videos after analysis
+
+memory:
+  db: ./data/memory.db
+
+# Safety: what agents may do without asking you.
+#   allow = runs automatically | ask = pauses and asks you in chat | deny = never
+permissions:
+  calculator: allow
+  current_time: allow
+  list_files: allow
+  read_file: allow
+  web_search: allow
+  web_fetch: ask
+  write_file: ask
+  look_at_screen: ask
+  run_command: ask
+  # RPA (files, folders, Excel): looking is automatic, every change asks you
+  list_folder: allow
+  find_files: allow
+  read_excel: allow
+  copy_files: ask
+  move_files: ask
+  make_folder: ask
+  rename_file: ask
+  write_excel: ask
+  append_excel_rows: ask
+
+# Folders agents may work in (besides the workspace). Hidden/system folders are always refused.
+rpa:
+  folders: [desktop, documents, downloads, pictures, videos, music]
+
+safety:
+  permission_timeout: 300               # seconds to wait for your answer, then auto-deny
+  command_timeout: 60                   # kill commands that run longer than this
+  audit_log: ./data/audit.jsonl         # every action + your decision is recorded here
+
+server:
+  port: 8765                            # always bound to 127.0.0.1 (this PC only)
+
+# System 1: fast typed decisions (task routing, hints, branching on the Canvas).
+# Free and offline: Laya (open-source System One model) -> MiniLM (46 MB) -> keywords.
+system1:
+  engine: laya           # free + on this PC: laya (default) | kev | openjev | cribl | local (MiniLM)
+                         # if the chosen server isn't running, NestCrew falls back to MiniLM, then keywords
+  laya_models: typed-decisions   # Laya checkpoint NestCrew starts (english, multilingual, typed-decisions)
+  # servers:                     # override where each System One server runs
+  #   kev: { url: http://127.0.0.1:8009, model: kev-latest }
+  embed_model: all-minilm:22m
+  temperature: 0.04
+
+# Other free local AI apps NestCrew can use (models.yaml backend: jan / lmstudio / llamacpp)
+local_servers:
+  jan: http://127.0.0.1:1337/v1         # Jan: Settings > Local API Server > Start Server
+  lmstudio: http://127.0.0.1:1234/v1    # LM Studio: Developer > Start server
+  llamacpp: http://127.0.0.1:8080/v1    # llama-server -hf <repo>:Q8_0 --port 8080
+
+# nanoVLM (experimental) - see GUIDE.md
+# nanovlm:
+#   repo: C:/Users/you/nanoVLM
+#   python: C:/Users/you/nanoVLM/.venv/Scripts/python.exe

@@ -1,0 +1,61 @@
+{
+  "id": "ask-image",
+  "name": "Ask about an image (eyes + brain)",
+  "description": "Drop an image into workspace/inbox/ask: a vision model describes it and the chat model gives a helpful answer.",
+  "enabled": false,
+  "allow": [],
+  "nodes": [
+    {
+      "id": "start",
+      "type": "trigger",
+      "x": 40,
+      "y": 140,
+      "config": {
+        "mode": "watch",
+        "folder": "inbox/ask",
+        "pattern": "*.png,*.jpg,*.jpeg,*.webp"
+      }
+    },
+    {
+      "id": "look",
+      "type": "vision",
+      "x": 270,
+      "y": 140,
+      "config": {
+        "job": "image",
+        "prompt": "Describe everything visible in detail, including any text."
+      }
+    },
+    {
+      "id": "think",
+      "type": "llm",
+      "x": 500,
+      "y": 140,
+      "config": {
+        "job": "chat",
+        "prompt": "Based on this description, give a clear, helpful answer with any warnings:\n{input}"
+      }
+    },
+    {
+      "id": "out",
+      "type": "output",
+      "x": 730,
+      "y": 140,
+      "config": {}
+    }
+  ],
+  "edges": [
+    {
+      "from": "start",
+      "to": "look"
+    },
+    {
+      "from": "look",
+      "to": "think"
+    },
+    {
+      "from": "think",
+      "to": "out"
+    }
+  ]
+}

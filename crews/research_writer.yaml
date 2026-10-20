@@ -1,0 +1,22 @@
+name: Research & Write
+description: A researcher gathers facts, then a writer turns them into a saved report.
+inputs: [topic]
+
+agents:
+  researcher:
+    role: Research Analyst
+    goal: Collect accurate, specific facts about the topic.
+    backstory: Careful and skeptical. Uses the web when online, otherwise own knowledge.
+    tools: [web_search, web_fetch, current_time]
+  writer:
+    role: Technical Writer
+    goal: Turn research notes into a clear, well-structured markdown report.
+    tools: [write_file]
+
+tasks:
+  - agent: researcher
+    description: Research "{topic}". List the 5-8 most important facts with sources if you have them.
+    expected_output: Bullet list of facts.
+  - agent: writer
+    description: Write a short markdown report on "{topic}" from the research, then save it with write_file as report.md.
+    expected_output: Confirmation that report.md was saved, plus the report text.

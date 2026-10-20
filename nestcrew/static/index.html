@@ -1,0 +1,963 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NestCrew</title>
+<style>
+:root{--bg:#f6f5f0;--side:#eeece5;--panel:#fffefb;--ink:#22201c;--muted:#7a756c;--faint:#a8a297;--line:#e3dfd5;--line2:#d4cfc2;
+--accent:#c4562d;--accent-ink:#fff;--accent-soft:#f6e3da;--ok:#2f7d4f;--ok-soft:#e1f0e6;--warn:#a26a12;--warn-soft:#f6ecd9;--bad:#b33a3a;--bad-soft:#f6e0e0;
+--node:#fffefb;--grid:#e6e2d8;--shadow:0 1px 2px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.05)}
+@media (prefers-color-scheme:dark){:root{--bg:#1d1c1a;--side:#171614;--panel:#252421;--ink:#ecebe5;--muted:#a19c91;--faint:#77736a;--line:#33312d;--line2:#45423c;
+--accent:#e2784f;--accent-ink:#1d1c1a;--accent-soft:#3b2a22;--ok:#62c08a;--ok-soft:#1f3328;--warn:#e0a84a;--warn-soft:#3a2f1c;--bad:#e57373;--bad-soft:#3d2323;--node:#2a2926;--grid:#2c2b28;--shadow:0 1px 2px rgba(0,0,0,.3)}}
+*{box-sizing:border-box}html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:14.5px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;overflow:hidden}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:var(--side);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+#side{width:248px;flex:none;background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.brand{display:flex;align-items:center;gap:8px;padding:14px 16px 8px;font-weight:700;font-size:17px;letter-spacing:-.02em}
+.brand i{width:22px;height:22px;border-radius:7px;background:var(--accent);display:inline-block;position:relative}
+.brand i:after{content:"";position:absolute;inset:6px;border:2px solid var(--accent-ink);border-radius:50%;border-top-color:transparent}
+.newchat{margin:6px 12px 10px;padding:8px 12px;border-radius:10px;border:1px solid var(--line2);background:var(--panel);text-align:left;font-weight:600}
+.newchat:hover{border-color:var(--accent)}
+.nav{display:flex;flex-direction:column;gap:1px;padding:0 8px}
+.nav button{display:flex;align-items:center;gap:10px;padding:7px 10px;border:none;background:none;border-radius:8px;text-align:left;color:var(--ink)}
+.nav button:hover{background:var(--line)}.nav button.on{background:var(--line);font-weight:600}
+.nav .ic{width:18px;text-align:center;opacity:.8}
+.badge{margin-left:auto;font-size:11px;min-width:18px;padding:0 6px;border-radius:99px;background:var(--bad);color:#fff;text-align:center;font-weight:600}
+.recent-h{padding:16px 18px 4px;font-size:11.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.05em}
+#recent{flex:1;overflow-y:auto;padding:0 8px 8px;min-height:0}
+#recent button{display:flex;gap:8px;align-items:center;width:100%;padding:6px 10px;border:none;background:none;border-radius:8px;text-align:left;color:var(--ink);font-size:13.5px}
+#recent button:hover{background:var(--line)}#recent button.on{background:var(--line)}
+#recent .t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#recent .del{opacity:0;padding:0 4px;color:var(--muted)}#recent button:hover .del{opacity:1}#recent .del:hover{color:var(--bad)}
+.kdot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--faint)}
+.kdot.agent,.kdot.crew{background:var(--accent)}.kdot.video{background:#7f77dd}.kdot.workflow,.kdot.automation{background:#1d9e75}.kdot.err{background:var(--bad)}
+.sfoot{border-top:1px solid var(--line);padding:10px 14px;font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;background:var(--faint)}.dot.on{background:var(--ok)}.dot.warn{background:var(--warn)}
+#center{flex:1;display:flex;flex-direction:column;min-width:0}
+#top{height:52px;flex:none;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--line)}
+#title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.sel{border:1px solid var(--line2);background:var(--panel);border-radius:8px;padding:5px 8px;max-width:230px}
+.ibtn{border:1px solid var(--line2);background:var(--panel);border-radius:8px;padding:5px 10px}
+.ibtn:hover{border-color:var(--accent)}
+.view{flex:1;display:none;min-height:0;flex-direction:column}.view.on{display:flex}
+.scroll{flex:1;overflow-y:auto;min-height:0}
+.col{max-width:780px;margin:0 auto;padding:22px 20px}
+#log{display:flex;flex-direction:column;gap:14px}
+.msg{white-space:pre-wrap;word-wrap:break-word;line-height:1.6}
+.msg.user{align-self:flex-end;background:var(--side);border:1px solid var(--line);padding:9px 14px;border-radius:14px;max-width:85%}
+.msg.user img{display:block;max-width:220px;border-radius:8px;margin-bottom:6px}
+.msg.bot{padding:2px 2px}
+.step{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:flex-start}
+.step b{color:var(--ink);font-weight:600}.step .sx{white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--muted);max-height:120px;overflow:hidden}
+.step:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--faint);margin-top:7px;flex:none}
+.acts{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;white-space:normal}
+.acts button{border:1px solid transparent;background:none;border-radius:7px;padding:3px 8px;font-size:12.5px;color:var(--muted)}
+.acts button:hover{border-color:var(--line2);color:var(--ink)}.acts .done{font-size:12.5px;color:var(--ok);padding:3px 8px}
+.perm{border:1.5px solid var(--accent);background:var(--panel);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow)}
+.perm h4{margin:0 0 6px;font-size:14px}.perm pre{margin:6px 0 10px;padding:8px 10px;background:var(--bg);border-radius:8px;font-size:12.5px;white-space:pre-wrap;max-height:220px;overflow:auto}
+.perm .row{display:flex;gap:6px;flex-wrap:wrap}.perm .row button{padding:6px 12px;border-radius:8px;border:1px solid var(--line2);background:var(--bg)}
+.perm .row button.yes{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.perm .doneline{font-size:13px;color:var(--muted)}
+.welcome{text-align:center;margin:10vh auto 0;color:var(--muted);max-width:580px}
+.welcome h1{color:var(--ink);font-size:28px;letter-spacing:-.02em;font-weight:650;margin:0 0 8px}
+.starters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:22px;text-align:left}
+.starters button{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:10px 12px;color:var(--ink);font-size:13.5px}
+.starters button:hover{border-color:var(--accent)}.starters small{display:block;color:var(--muted);font-size:12px}
+.chart{background:#fff;border-radius:8px;margin-top:10px}.chart svg{width:100%;height:auto;display:block}
+table.tl{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px;white-space:normal}table.tl td,table.tl th{border-top:1px solid var(--line);padding:4px 6px;text-align:left;vertical-align:top}
+#composer{flex:none;padding:0 20px 14px}
+.cbox{max-width:780px;margin:0 auto;border:1px solid var(--line2);background:var(--panel);border-radius:16px;box-shadow:var(--shadow)}
+#hint{display:none;padding:8px 12px;border-bottom:1px solid var(--line);font-size:13px;gap:6px;flex-wrap:wrap;align-items:center;background:var(--accent-soft);border-radius:16px 16px 0 0}
+#hint.on{display:flex}#hint b{font-weight:600}#hint .tip{color:var(--muted);flex-basis:100%}
+.chip{border:1px solid var(--line2);background:var(--panel);border-radius:99px;padding:2px 10px;font-size:12.5px}
+.chip:hover{border-color:var(--accent)}.chip.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+#thumb{font-size:12px;color:var(--muted);padding:6px 14px 0}
+#input{width:100%;border:none;background:none;resize:none;outline:none;padding:12px 14px 4px;min-height:48px;max-height:220px}
+.cbar{display:flex;align-items:center;gap:6px;padding:6px 8px 8px 8px;flex-wrap:wrap}
+.modes{display:flex;gap:2px;background:var(--side);border-radius:9px;padding:2px}
+.modes button{border:none;background:none;border-radius:7px;padding:3px 10px;font-size:13px;color:var(--muted)}.modes button.on{background:var(--panel);color:var(--ink);box-shadow:var(--shadow);font-weight:600}
+.tog{font-size:12.5px;color:var(--muted);display:none;align-items:center;gap:4px;border:1px solid var(--line);border-radius:99px;padding:2px 9px}.tog.vis{display:inline-flex}
+.tog input{accent-color:var(--accent)}
+#crewbar{display:none;gap:6px;align-items:center}#crewbar.vis{display:flex}#crewbar input{border:1px solid var(--line2);background:var(--bg);border-radius:7px;padding:3px 8px;width:150px;font-size:13px}
+.grow{flex:1}
+.send{background:var(--accent);color:var(--accent-ink);border:none;font-weight:600;padding:7px 14px;border-radius:10px}
+.send:disabled{opacity:.5}.stop{background:var(--ink);color:var(--bg);border:none;font-weight:600;padding:7px 14px;border-radius:10px;display:none}
+.attach{border:1px solid var(--line2);background:none;border-radius:9px;padding:4px 9px;cursor:pointer}
+.cnote{max-width:780px;margin:6px auto 0;text-align:center;font-size:11.5px;color:var(--faint)}
+#panel{width:290px;flex:none;border-left:1px solid var(--line);background:var(--bg);display:flex;flex-direction:column;min-height:0}
+#panel.hide{display:none}
+#panel .scroll{padding:14px 14px 20px}
+.ph{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:16px 2px 8px;display:flex;align-items:center;gap:6px}
+.ph:first-child{margin-top:2px}
+#steps{display:flex;flex-direction:column;gap:2px}
+.ps{display:flex;gap:10px;align-items:flex-start;padding:4px 2px;font-size:13px}
+.ps .b{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line2);flex:none;margin-top:2px;background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:10px}
+.ps.done .b{background:var(--ok);border-color:var(--ok);color:#fff}.ps.done .b:after{content:"✓"}
+.ps.run .b{border-color:var(--accent);border-top-color:transparent;animation:spin 1s linear infinite}
+.ps.wait .b{border-color:var(--warn);background:var(--warn-soft)}.ps.wait .b:after{content:"!";color:var(--warn);font-weight:700}
+.ps.err .b{background:var(--bad);border-color:var(--bad);color:#fff}.ps.err .b:after{content:"✕"}
+.ps.skip{opacity:.5}
+.ps .tx{flex:1;min-width:0}.ps .tx small{display:block;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.ps.run .b{animation:none}}
+.pempty{font-size:13px;color:var(--faint);padding:2px}
+.out{display:flex;gap:8px;align-items:center;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);margin-bottom:5px}
+.out .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.used{display:flex;flex-wrap:wrap;gap:5px}.used span{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:1px 8px;background:var(--panel)}
+.sim{font-size:12.5px;padding:5px 8px;border-radius:8px;cursor:pointer}.sim:hover{background:var(--side)}
+.sec{font-size:17px;margin:4px 0 4px;font-weight:650}.note{font-size:13px;color:var(--muted);margin:0 0 12px}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.card h3{margin:0;font-size:15px}.card .sub{font-size:12.5px;color:var(--muted)}.card .best{font-size:13.5px}
+.card .row{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto;padding-top:6px}
+.tag{font-size:11.5px;padding:1px 8px;border-radius:99px;border:1px solid var(--line2);color:var(--muted)}
+.tag.ok{color:var(--ok);border-color:var(--ok)}.tag.warn{color:var(--warn);border-color:var(--warn)}
+.btn2{font-size:13px;padding:5px 11px;border-radius:8px;border:1px solid var(--line2);background:var(--bg)}
+.btn2:hover{border-color:var(--accent)}.btn2.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.btn2:disabled{opacity:.5}
+.jobs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin:8px 0 22px}
+.jobs label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}.jobs select{width:100%}
+.jh{font-size:12px}.jh.best,.jh.good{color:var(--ok)}.jh.no{color:var(--bad)}
+.row2{display:flex;gap:12px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px}
+.row2 .info{flex:1;min-width:0}.row2 .info b{font-size:14.5px}.row2 .info div{font-size:13px;color:var(--muted)}
+.sev{font-size:11px;font-weight:700;padding:1px 7px;border-radius:5px;text-transform:uppercase}
+.sev.high{background:var(--bad-soft);color:var(--bad)}.sev.medium{background:var(--warn-soft);color:var(--warn)}.sev.low{background:var(--side);color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px 0 16px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px}.stat b{font-size:22px;display:block}.stat span{font-size:12px;color:var(--muted)}
+#bubbles{width:100%;height:auto;display:block;background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:16px;color:var(--ink)}
+.search{width:100%;border:1px solid var(--line2);background:var(--panel);border-radius:10px;padding:8px 12px;margin-bottom:10px}
+.tgraph{position:relative;padding-left:26px;margin:14px 0}
+.tgraph:before{content:"";position:absolute;left:9px;top:8px;bottom:8px;width:2px;background:var(--line2)}
+.tn{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:10px}
+.tn:before{content:"";position:absolute;left:-22px;top:12px;width:12px;height:12px;border-radius:50%;background:var(--panel);border:2px solid var(--line2)}
+.tn.tool:before{border-color:var(--accent)}.tn.final:before{border-color:var(--ok);background:var(--ok)}.tn.err:before{border-color:var(--bad);background:var(--bad)}.tn.ask:before{border-color:var(--warn)}
+.tn b{font-size:13.5px}.tn pre{margin:4px 0 0;white-space:pre-wrap;font-size:12px;color:var(--muted);max-height:160px;overflow:auto;font-family:ui-monospace,Consolas,monospace}
+#v-canvas{flex-direction:row}
+#cvmain{flex:1;display:flex;flex-direction:column;min-width:0}
+.cvbar{display:flex;gap:6px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.cvbar input.name{border:1px solid var(--line2);background:var(--panel);border-radius:8px;padding:5px 9px;width:220px;font-weight:600}
+.palette{display:flex;gap:5px;padding:8px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--muted)}
+.palette button{border:1px dashed var(--line2);background:var(--panel);border-radius:8px;padding:3px 9px;font-size:12.5px}
+.palette button:hover{border-style:solid;border-color:var(--accent)}
+#cv{flex:1;overflow:auto;position:relative;min-height:0;background-color:var(--bg);background-image:radial-gradient(var(--grid) 1.2px,transparent 1.2px);background-size:22px 22px}
+#cvin{position:relative;width:2600px;height:1600px}
+#edges{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+#edges path{fill:none;stroke:var(--line2);stroke-width:2}
+#edges path.hit{stroke:transparent;stroke-width:14;cursor:pointer;pointer-events:stroke}
+#edges path.sel{stroke:var(--accent)}#edges path.live{stroke:var(--accent);stroke-dasharray:6 5;animation:flow .6s linear infinite}
+#edges text{font-size:11px;fill:var(--muted)}
+@keyframes flow{to{stroke-dashoffset:-11}}
+.nd{position:absolute;width:196px;background:var(--node);border:1.5px solid var(--line2);border-radius:12px;box-shadow:var(--shadow);user-select:none}
+.nd.sel{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.nd .hd{display:flex;align-items:center;gap:7px;padding:7px 10px 3px;cursor:grab;font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.nd .ico{width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;flex:none}
+.nd .nt{padding:0 10px;font-weight:600;font-size:13.5px}.nd .ns{padding:2px 10px 9px;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nd .pin,.nd .pout{position:absolute;top:22px;width:13px;height:13px;border-radius:50%;background:var(--panel);border:2px solid var(--line2)}
+.nd .pin{left:-8px}.nd .pout{right:-8px;cursor:crosshair}.nd .pout:hover{border-color:var(--accent);background:var(--accent)}
+.nd.running{border-color:var(--accent)}.nd.running .hd:after{content:"running…";margin-left:auto;color:var(--accent);text-transform:none}
+.nd.done{border-color:var(--ok)}.nd.done .hd:after{content:"✓ done";margin-left:auto;color:var(--ok);text-transform:none}
+.nd.error{border-color:var(--bad)}.nd.error .hd:after{content:"✕ failed";margin-left:auto;color:var(--bad);text-transform:none}
+.nd.skipped{opacity:.45}
+.nd.d-add{border-color:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}.nd.d-add .hd:after{content:"＋ new";margin-left:auto;color:var(--ok);text-transform:none}
+.nd.d-chg{border-color:var(--warn);box-shadow:0 0 0 3px var(--warn-soft)}.nd.d-chg .hd:after{content:"✎ changed";margin-left:auto;color:var(--warn);text-transform:none}
+.nd.d-del{border:1.5px dashed var(--bad);opacity:.55;pointer-events:none}.nd.d-del .hd:after{content:"− removed";margin-left:auto;color:var(--bad);text-transform:none}
+#edges path.d-del{stroke:var(--bad);stroke-dasharray:6 5}#edges path.d-add{stroke:var(--ok)}
+#cmpbar{display:none;align-items:center;gap:8px;padding:6px 12px;background:var(--warn-soft);border-bottom:1px solid var(--line);font-size:13px}
+.ver{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px;background:var(--panel);font-size:13px}
+.ver .row{display:flex;gap:6px;margin-top:6px}.chg{font-size:12.5px;margin:4px 0;padding:6px 8px;border-radius:8px;background:var(--panel);border:1px solid var(--line)}
+#insp{width:290px;flex:none;border-left:1px solid var(--line);overflow-y:auto;padding:14px;background:var(--bg)}
+#insp label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted);margin-bottom:10px}
+#insp input[type=text],#insp textarea,#insp select{border:1px solid var(--line2);background:var(--panel);border-radius:8px;padding:6px 8px;color:var(--ink);width:100%}
+#insp textarea{min-height:70px;resize:vertical;font-size:13px}
+#insp .cb{flex-direction:row;align-items:center;gap:6px;color:var(--ink)}
+#insp .tipbox{font-size:12.5px;background:var(--accent-soft);border-radius:10px;padding:8px 10px;margin-bottom:12px;color:var(--ink)}
+.tools{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12.5px;color:var(--ink)}
+.tools label{flex-direction:row!important;align-items:center;gap:4px;margin:0!important;color:var(--ink)!important}
+.md{line-height:1.65;font-size:15px}.md h1{font-size:26px;letter-spacing:-.02em}.md h2{font-size:19px;margin-top:30px}.md h3{font-size:16px;margin-top:22px}
+.md table{border-collapse:collapse;width:100%;font-size:13.5px;margin:10px 0;display:block;overflow-x:auto}
+.md th,.md td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}.md th{white-space:nowrap}
+.md pre{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;overflow-x:auto}.md pre code{border:none;padding:0;background:none}
+.md blockquote{margin:10px 0;padding:6px 14px;border-left:3px solid var(--accent);color:var(--muted)}.md a{color:var(--accent)}
+#toast{position:fixed;left:50%;top:62px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:10px;font-size:13px;z-index:50;display:none}
+@media (max-width:1150px){#panel{display:none}#panel.force{display:flex;position:fixed;right:0;top:0;bottom:0;z-index:20;box-shadow:var(--shadow)}}
+</style>
+</head>
+<body>
+<aside id="side">
+  <div class="brand"><i></i>NestCrew</div>
+  <button class="newchat" id="newchat">+ New chat</button>
+  <nav class="nav">
+    <button data-view="chat" class="on"><span class="ic">💬</span>Chat</button>
+    <button data-view="canvas"><span class="ic">◇</span>Canvas</button>
+    <button data-view="brain"><span class="ic">◎</span>Brain</button>
+    <button data-view="incidents"><span class="ic">⚠</span>Incidents<span class="badge" id="incbadge" style="display:none"></span></button>
+    <button data-view="autos"><span class="ic">⏱</span>Automations</button>
+    <button data-view="models"><span class="ic">▣</span>Models</button>
+    <button data-view="guide"><span class="ic">?</span>Guide</button>
+  </nav>
+  <div class="recent-h">Recent</div>
+  <div id="recent"></div>
+  <div class="sfoot">
+    <div><span class="dot" id="netdot"></span><span id="net">checking…</span></div>
+    <div><span class="dot" id="mdot"></span><span id="mstat"></span></div>
+    <div><span class="dot" id="s1dot"></span><span id="s1stat">System 1</span></div>
+  </div>
+</aside>
+
+<div id="center">
+  <div id="top">
+    <div id="title">New chat</div>
+    <select class="sel" id="provider" title="Which model answers">
+      <option value="">Auto · right model per job</option>
+      <option value="local">This PC only</option>
+      <optgroup label="Paid cloud — optional (needs your key)">
+        <option value="anthropic">Claude</option><option value="gemini">Gemini</option>
+        <option value="xai">Grok</option><option value="openai">OpenAI</option>
+      </optgroup>
+      <optgroup label="A specific model on this PC" id="pcmodels"></optgroup>
+    </select>
+    <button class="ibtn" id="ptoggle" title="Show or hide the progress panel">Progress</button>
+  </div>
+
+  <section class="view on" id="v-chat">
+    <div class="scroll" id="chatscroll"><div class="col"><div id="log"></div></div></div>
+    <div id="composer">
+      <div class="cbox">
+        <div id="hint"></div>
+        <div id="thumb"></div>
+        <textarea id="input" rows="1" placeholder="Ask anything, or give NestCrew a task…"></textarea>
+        <div class="cbar">
+          <label class="attach" title="Attach an image or video">📎<input id="file" type="file" accept="image/*,video/*" hidden></label>
+          <div class="modes" id="modes">
+            <button data-mode="chat" class="on" title="Plain answer">Chat</button>
+            <button data-mode="agent" title="Uses tools step by step, asks before risky actions">Agent</button>
+            <button data-mode="crew" title="Several agents working through a recipe">Crew</button>
+            <button data-mode="video" title="Frame-by-frame video analysis with a chart">Video</button>
+          </div>
+          <label class="tog" id="tscreen"><input type="checkbox" id="allowscreen">Screenshots</label>
+          <label class="tog" id="tcmd"><input type="checkbox" id="allowcmd">Commands</label>
+          <div id="crewbar"><select class="sel" id="crewsel"></select><span id="crewinputs" style="display:contents"></span></div>
+          <span class="grow"></span>
+          <button class="send" id="send">Send</button>
+          <button class="stop" id="stop">Stop</button>
+        </div>
+      </div>
+      <div class="cnote">Runs on this PC · risky actions always ask you first · every task is recorded in Brain</div>
+    </div>
+  </section>
+
+  <section class="view" id="v-canvas">
+    <div id="cvmain">
+      <div class="cvbar">
+        <select class="sel" id="wfsel" title="Open a workflow"></select>
+        <input class="name" id="wfname" placeholder="Workflow name">
+        <button class="btn2" id="wfsave">Save</button>
+        <button class="btn2 pri" id="wfrun">▶ Run now</button>
+        <label class="tog vis" title="Run automatically on its trigger"><input type="checkbox" id="wfen">Automatic</label>
+        <span class="grow"></span>
+        <button class="btn2" id="wfhist" title="Saved versions: compare or restore">🕘 History</button>
+        <button class="btn2" id="wfdel" title="Delete (a backup file is kept)">Delete</button>
+      </div>
+      <div id="cmpbar"><b>Comparing</b> <span id="cmpwhat"></span><span class="grow"></span>
+        <span style="color:var(--ok)">＋ new</span><span style="color:var(--warn)">✎ changed</span><span style="color:var(--bad)">− removed</span>
+        <button class="btn2" id="cmprestore">Restore this old version</button><button class="btn2 pri" id="cmpexit">Done comparing</button></div>
+      <div class="palette" id="palette">Add step:</div>
+      <div id="cv"><div id="cvin"><svg id="edges"></svg></div></div>
+    </div>
+    <aside id="insp"></aside>
+  </section>
+
+  <section class="view" id="v-brain"><div class="scroll"><div class="col" id="brain"></div></div></section>
+  <section class="view" id="v-run"><div class="scroll"><div class="col" id="rundetail"></div></div></section>
+  <section class="view" id="v-incidents"><div class="scroll"><div class="col" id="incidents"></div></div></section>
+  <section class="view" id="v-autos"><div class="scroll"><div class="col"><h2 class="sec">Automations</h2>
+    <p class="note">Recipes from <code>automations.yaml</code> plus Canvas workflows with a folder, time or interval trigger. They run while NestCrew is open. Unattended runs may only use tools listed as pre-approved — everything else is denied. "Run now" asks you in chat as usual.</p>
+    <div id="autolist"></div></div></div></section>
+  <section class="view" id="v-models"><div class="scroll"><div class="col">
+    <h2 class="sec">Which model does which job</h2>
+    <p class="note">A capable "brain" runs chat and agents; tiny "eyes" models look at screens, video and documents. ★ marks the recommended model; hints explain each choice. Jobs use your default model until the chosen one is downloaded.</p>
+    <div class="jobs" id="jobs"></div>
+    <h2 class="sec">System 1 engine</h2>
+    <p class="note">Fast typed decisions — hints, Canvas <b>Decide</b> steps, similar tasks. Never writes text.</p>
+    <div class="jobs" id="s1eng"></div>
+    <h2 class="sec">Models</h2><p class="note">Sizes are approximate. Downloads need internet once; everything runs offline after.</p>
+    <div class="mgrid" id="mgrid"></div></div></div></section>
+  <section class="view" id="v-guide"><div class="scroll"><div class="col md" id="guide"></div></div></section>
+</div>
+
+<aside id="panel">
+  <div class="scroll">
+    <div class="ph">Progress <span id="pstate" style="margin-left:auto;text-transform:none;letter-spacing:0"></span></div>
+    <div id="steps"><div class="pempty">Steps appear here while a task runs.</div></div>
+    <div class="ph">Outputs</div><div id="outs"><div class="pempty">Files and notes created by tasks.</div></div>
+    <div class="ph">Used in this task</div><div class="used" id="used"><span>—</span></div>
+    <div class="ph">Similar past tasks</div><div id="similar"><div class="pempty">Type a task to see what worked before.</div></div>
+  </div>
+</aside>
+<div id="toast"></div>
+<div id="down" style="display:none;position:fixed;inset:0;background:rgba(20,18,16,.55);z-index:60;align-items:center;justify-content:center">
+  <div style="background:var(--panel);border-radius:16px;padding:22px 24px;max-width:440px;box-shadow:var(--shadow)">
+    <h3 style="margin:0 0 8px">NestCrew isn't running</h3>
+    <p style="margin:0 0 12px;color:var(--muted)">This window is open, but the NestCrew program behind it was closed. Close this window and double-click <b>NestCrew</b> (or <b>Start NestCrew</b>) on your Desktop.</p>
+    <p style="margin:0;font-size:13px;color:var(--faint)">This message disappears by itself when NestCrew is back.</p>
+  </div></div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const TOKEN="__NESTCREW_TOKEN__";
+const H=(json=true)=>json?{"Content-Type":"application/json","X-NestCrew-Token":TOKEN}:{"X-NestCrew-Token":TOKEN};
+const esc=t=>String(t??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let mode="chat", images=[], videoFile=null, busy=false, runId=null, crews=[], view="chat", chatAbort=null;
+let session=newId(), chatTitle="New chat";
+function newId(){ return "s"+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function toast(t){ const d=$("#toast"); d.textContent=t; d.style.display="block"; clearTimeout(d._t); d._t=setTimeout(()=>d.style.display="none",2600); }
+async function api(path,body){ let r; try{ r=await fetch(path,body===undefined?{headers:H(false)}:{method:"POST",headers:H(),body:JSON.stringify(body)}); }
+  catch(e){ throw new Error("NestCrew isn't running — open it from your Desktop."); }
+  const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.detail||r.statusText); return j; }
+async function stream(url, body, onEv, signal){
+  const isForm=body instanceof FormData;
+  let r; try{ r=await fetch(url,{method:"POST",headers:H(!isForm),body:isForm?body:JSON.stringify(body),signal}); }
+  catch(e){ if(e.name==="AbortError") throw e; status(); onEv({type:"error",text:"NestCrew isn't running — open it from your Desktop and try again."}); return; }
+  if(!r.ok){ const t=await r.json().catch(()=>({detail:r.statusText})); onEv({type:"error",text:t.detail}); return; }
+  const rd=r.body.getReader(), dec=new TextDecoder(); let buf="";
+  for(;;){ const {value,done}=await rd.read(); if(done)break; buf+=dec.decode(value,{stream:true});
+    let i; while((i=buf.indexOf("\n\n"))>=0){ const line=buf.slice(0,i); buf=buf.slice(i+2);
+      if(line.startsWith("data: ")) onEv(JSON.parse(line.slice(6))); } }
+}
+
+/* ---------------------------------------------------------------- navigation */
+function show(v){
+  view=v; $$(".view").forEach(x=>x.classList.toggle("on",x.id==="v-"+v));
+  $$(".nav button").forEach(b=>b.classList.toggle("on",b.dataset.view===v));
+  const titles={canvas:"Canvas · visual automations",brain:"Brain · what NestCrew has learned",incidents:"Incidents",autos:"Automations",models:"Models",guide:"Guide",run:"Run details"};
+  $("#title").textContent=titles[v]||chatTitle;
+  ({canvas:loadCanvas,brain:loadBrain,incidents:loadIncidents,autos:loadAutos,models:loadModels,guide:loadGuide}[v]||(()=>{}))();
+}
+$$(".nav button").forEach(b=>b.onclick=()=>show(b.dataset.view));
+$("#ptoggle").onclick=()=>{ const p=$("#panel"); if(innerWidth<1150) p.classList.toggle("force"); else p.classList.toggle("hide"); };
+$("#newchat").onclick=()=>{ session=newId(); chatTitle="New chat"; images=[]; $("#thumb").textContent=""; welcome(); renderLast5(); $("#title").textContent=chatTitle; resetProgress(); show("chat"); loadRecent(); };
+
+/* ---------------------------------------------------------------- status + recent */
+async function status(){
+  try{ const s=await api("/api/status");
+    $("#net").textContent=s.online?"Online — cloud & web tools available":"Offline — fully local";
+    $("#netdot").className="dot"+(s.online?" on":"");
+    const has=s.installed_models.some(m=>m.split(":")[0]===s.local_model.split(":")[0]);
+    $("#mstat").textContent=s.installed_models.length?(has?"Default model ready":"Default model not downloaded"):"Ollama not running";
+    $("#mdot").className="dot"+(has?" on":" warn");
+    for(const o of $$("#provider option")){ if(s.cloud_keys[o.value]===false && !o.disabled){ o.disabled=true; o.textContent+=" (no key)"; } }
+    if(!crews.length){ crews=s.crews; $("#crewsel").innerHTML=crews.map(c=>`<option value="${c.file}">${esc(c.name)}</option>`).join(""); renderCrewInputs(); }
+    $("#down").style.display="none";
+  }catch(e){ $("#net").textContent="NestCrew server not reachable"; $("#netdot").className="dot warn"; $("#down").style.display="flex"; return; }
+  try{ const b=await api("/api/brain");
+    const names={laya:"Laya",kev:"Kev",openjev:"OpenJev",cribl:"Cribl decision"};
+    $("#s1stat").textContent=names[b.engine]?(b.engine_up?`System 1: ${names[b.engine]} ✓`:`System 1: ${names[b.engine]} not running → ${b.system1?"MiniLM":"keywords"}`):(b.system1?"System 1: MiniLM":"System 1: keyword mode");
+    $("#s1dot").className="dot"+(b.engine_up||b.system1?" on":" warn");
+    $("#incbadge").style.display=b.open_incidents?"":"none"; $("#incbadge").textContent=b.open_incidents;
+  }catch(e){}
+}
+async function loadRecent(){
+  try{ const list=await api("/api/sessions");
+    RECENT=list;
+    $("#recent").innerHTML=list.map(x=>`<button data-id="${esc(x.id)}" data-kind="${esc(x.kind)}" class="${x.id===session?"on":""}" title="${esc(x.title)}">
+      <span class="kdot ${esc(x.kind)} ${x.status==="error"?"err":""}"></span><span class="t">${esc(x.title||"Untitled")}</span>${x.kind==="chat"?`<span class="del" title="Delete this chat">×</span>`:""}</button>`).join("")||`<div class="pempty" style="padding:6px 10px">No history yet.</div>`;
+    $$("#recent button").forEach(b=>b.onclick=async e=>{
+      if(e.target.classList.contains("del")){ e.stopPropagation(); if(!confirm("Delete this chat?")) return;
+        await api(`/api/session/${encodeURIComponent(b.dataset.id)}/delete`,{}); if(b.dataset.id===session) $("#newchat").click(); loadRecent(); return; }
+      b.dataset.kind==="chat"?openSession(b.dataset.id,b.title):openRun(b.dataset.id); });
+    if($("#welcome")) renderLast5();
+  }catch(e){}
+}
+async function openSession(id,title){
+  session=id; chatTitle=title; show("chat"); $("#log").innerHTML="";
+  const d=await api("/api/session/"+encodeURIComponent(id)); let first=true;
+  for(const m of d.messages){ const img=(m.role==="user"&&first&&d.image)?`<img src="data:image/jpeg;base64,${d.image}">`:"";
+    if(m.role==="user") first=false; add("msg "+(m.role==="user"?"user":"bot"),img+esc(m.content.replace(/ \[image\]$/,""))); }
+  if(d.image) $("#thumb").textContent="🖼 Follow-up questions in this chat are about the same photo";
+  setMode("chat"); loadRecent();
+}
+
+/* ---------------------------------------------------------------- chat */
+function welcome(){
+  $("#log").innerHTML=`<div class="welcome" id="welcome"><h1>What should we work on?</h1>
+  <div>Everything runs on this PC. As you type, hints suggest the right mode, model and switches.</div>
+  <div class="starters">
+    <button data-p="What does the error on my screen mean?" data-m="agent" data-s="1">🖥 Explain the error on my screen<small>Agent + Screenshots</small></button>
+    <button data-p="Extract vendor, date and total from this invoice" data-m="chat" data-a="1">🧾 Read an invoice<small>Attach a photo · document model</small></button>
+    <button data-p="How many people are visible?" data-m="video" data-a="1">🎬 Count people in a video<small>Video mode · chart + CSV</small></button>
+    <button data-p="Every morning, summarise my notes folder into a briefing" data-m="canvas">◇ Automate a daily task<small>Drafts a workflow on the Canvas</small></button>
+  </div></div>`;
+  $$(".starters button").forEach(b=>b.onclick=()=>{
+    if(b.dataset.m==="canvas"){ newWorkflowFromText(b.dataset.p); return; }
+    setMode(b.dataset.m); $("#input").value=b.dataset.p; if(b.dataset.s) $("#allowscreen").checked=true;
+    if(b.dataset.a) $("#file").click(); $("#input").focus(); askHint();
+  });
+}
+function add(cls,html){ $("#welcome")?.remove(); const d=document.createElement("div"); d.className=cls; d.innerHTML=html; $("#log").appendChild(d); $("#chatscroll").scrollTop=1e9; return d; }
+function setMode(m){
+  mode=m; $$("#modes button").forEach(b=>b.classList.toggle("on",b.dataset.mode===m));
+  $("#tscreen").classList.toggle("vis",m==="agent"); $("#tcmd").classList.toggle("vis",m==="agent");
+  $("#crewbar").classList.toggle("vis",m==="crew");
+  $("#input").placeholder={agent:"Give the agent a task — it asks before anything risky…",crew:"Extra instructions for the crew (optional)…",video:"Attach a video 📎, then ask e.g. “How many people are visible?”"}[m]||"Ask anything, or give NestCrew a task…";
+}
+$$("#modes button").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+function renderCrewInputs(){ const c=crews.find(c=>c.file===$("#crewsel").value); $("#crewinputs").innerHTML=(c?.inputs||[]).map(i=>`<input data-k="${esc(i)}" placeholder="${esc(i)}">`).join(""); }
+$("#crewsel").onchange=renderCrewInputs;
+$("#file").onchange=e=>{
+  const f=e.target.files[0]; e.target.value=""; if(!f)return;
+  if(f.type.startsWith("video/")){ videoFile=f; setMode("video"); $("#thumb").textContent="🎬 "+f.name+" ("+(f.size/1048576).toFixed(1)+" MB) attached"; return; }
+  const img=new Image(); img.onload=()=>{ const max=1024, s=Math.min(1,max/Math.max(img.width,img.height));
+    const c=document.createElement("canvas"); c.width=img.width*s; c.height=img.height*s; c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+    images=[c.toDataURL("image/jpeg",.85).split(",")[1]]; $("#thumb").textContent="🖼 "+f.name+" attached"; askHint(); };
+  img.src=URL.createObjectURL(f);
+};
+$("#input").addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); send(); } });
+$("#input").addEventListener("input",e=>{ e.target.style.height="auto"; e.target.style.height=e.target.scrollHeight+"px"; clearTimeout(askHint._t); askHint._t=setTimeout(askHint,450); });
+
+/* hints from System 1 */
+let TYPES={}, RECENT=[];
+const ACTION_TYPES=["files","command","math","excel","rpa"];
+function autoAgentOn(){ try{ return localStorage.getItem("nc_autoagent")!=="0"; }catch(e){ return true; } }
+function renderLast5(){
+  const chats=RECENT.filter(x=>x.kind==="chat").slice(0,5), w=$("#welcome"); if(!w) return;
+  w.querySelector(".last5")?.remove(); if(!chats.length) return;
+  w.insertAdjacentHTML("beforeend",`<div class="last5"><div class="ph" style="justify-content:center;margin-top:26px">Your last ${chats.length} chats</div>${chats.map(c=>`<button class="chip" style="margin:3px" data-id="${esc(c.id)}">${esc(c.title)}</button>`).join("")}</div>`);
+  w.querySelectorAll(".last5 button").forEach(b=>b.onclick=()=>openSession(b.dataset.id,b.textContent));
+}
+async function askHint(){
+  const text=$("#input").value.trim(); const box=$("#hint");
+  if(busy) return;                          // keep the laptop free while an answer is being written
+  if(text.length<6){ box.classList.remove("on"); return; }
+  let h; try{ h=await api("/api/hint",{text,has_image:images.length>0}); }catch(e){ return; }
+  if(!h.type){ box.classList.remove("on"); return; }
+  const btns=[];
+  if(h.page==="canvas") btns.push(`<button class="chip pri" data-a="canvas">Build it on the Canvas</button>`);
+  else if(h.mode && h.mode!==mode) btns.push(`<button class="chip pri" data-a="mode">Switch to ${h.mode[0].toUpperCase()+h.mode.slice(1)}</button>`);
+  if(h.toggles.includes("screen") && !$("#allowscreen").checked) btns.push(`<button class="chip" data-a="screen">Turn on Screenshots</button>`);
+  if(h.toggles.includes("commands") && !$("#allowcmd").checked) btns.push(`<button class="chip" data-a="cmd">Turn on Commands</button>`);
+  if(h.attach && !images.length) btns.push(`<button class="chip" data-a="attach">Attach image</button>`);
+  if(h.model && h.model_ready && h.mode==="chat" && $("#provider").value!==h.model) btns.push(`<button class="chip" data-a="model">Use ${esc(h.model_name)}</button>`);
+  if(h.model && !h.model_ready) btns.push(`<button class="chip" data-a="models">${esc(h.model_name)} isn't downloaded — get it</button>`);
+  const opts=Object.entries(TYPES).map(([k,l])=>`<option value="${k}" ${k===h.type?"selected":""}>${esc(l)}</option>`).join("");
+  box.innerHTML=`<span>Looks like</span> <b>${esc(h.label)}</b> <span class="tag">${Math.round(h.confidence*100)}%</span> ${btns.join(" ")}
+    <select class="chip" id="hintfix" title="Wrong? Pick the right type — System 1 learns from it">${opts}</select><span class="tip">💡 ${esc(h.tip)}</span>`;
+  box.classList.add("on");
+  box.querySelectorAll("button").forEach(b=>b.onclick=()=>applyHint(b.dataset.a,h));
+  $("#hintfix").onchange=async e=>{ await api("/api/hint/correct",{text,type:e.target.value}); toast("Thanks — System 1 will remember that"); askHint(); };
+  $("#similar").innerHTML=(h.similar||[]).length?h.similar.map(s=>`<div class="sim" data-id="${esc(s.id)}">${s.rating>0?"👍 ":""}${esc(s.title)}</div>`).join(""):`<div class="pempty">Nothing similar yet.</div>`;
+  $$("#similar .sim").forEach(d=>d.onclick=()=>openRun(d.dataset.id));
+}
+function applyHint(a,h){
+  if(a==="mode") setMode(h.mode);
+  if(a==="screen"){ setMode("agent"); $("#allowscreen").checked=true; }
+  if(a==="cmd"){ setMode("agent"); $("#allowcmd").checked=true; }
+  if(a==="attach") $("#file").click();
+  if(a==="model"){ $("#provider").value=h.model; toast("This chat now uses "+h.model_name); }
+  if(a==="models"){ show("models"); return; }
+  if(a==="canvas"){ newWorkflowFromText($("#input").value); return; }
+  if(h.mode==="crew" && h.crew){ $("#crewsel").value=h.crew; renderCrewInputs(); const i=$("#crewinputs input"); if(i) i.value=$("#input").value; }
+  askHint();
+}
+
+/* send */
+async function send(){
+  if(busy) return; const text=$("#input").value.trim(); const provider=$("#provider").value||null;
+  if(!text && mode!=="crew") return;
+  if(mode==="video" && !videoFile){ toast("Attach a video with 📎 first"); return; }
+  busy=true; $("#send").disabled=true; $("#hint").classList.remove("on");
+  if(view!=="chat") show("chat");
+  if(chatTitle==="New chat"){ chatTitle=(text||mode).slice(0,60); $("#title").textContent=chatTitle; }
+  const imgHtml=images.length?`<img src="data:image/jpeg;base64,${images[0]}">`:"";
+  if(text||imgHtml) add("msg user",imgHtml+esc(text));
+  $("#input").value=""; $("#input").style.height=""; const sent=images; images=[]; $("#thumb").textContent="";
+  // Chat can only talk. If you asked it to DO something (files, Excel, commands, maths),
+  // System 1 notices and this message runs as an Agent with tools instead.
+  let runMode=mode;
+  if(mode==="chat" && !sent.length && text && autoAgentOn()){
+    try{ const h=await api("/api/hint",{text,has_image:false});
+      if(ACTION_TYPES.includes(h.type) && h.confidence>=0.45){ runMode="agent";
+        add("step",`<span>This needs tools, so it runs as an <b>Agent</b> (${esc(h.label)} · ${Math.round(h.confidence*100)}%). Risky steps still ask you first.</span>`); }
+    }catch(e){}
+  }
+  try{
+    if(runMode==="chat"){
+      const box=add("msg bot",""); let acc="", t0=Date.now();
+      box.innerHTML=`<span class="step" style="display:inline-flex">Thinking… <span id="tsec">0s</span></span>`;
+      const tick=setInterval(()=>{ const e=box.querySelector("#tsec"); if(e) e.textContent=Math.round((Date.now()-t0)/1000)+"s"+((Date.now()-t0)>20000?" — the first answer after starting can take a minute while the model loads":""); },1000);
+      $("#send").style.display="none"; $("#stop").style.display="inline-block";
+      chatAbort=new AbortController();
+      resetProgress("Chat"); progStep("answer","Writing the answer","run");
+      try{
+      await stream("/api/chat",{message:text,images:sent,provider,session},ev=>{
+        if(ev.type==="token"){ if(!acc) box.textContent=""; acc+=ev.text; box.textContent=acc; $("#chatscroll").scrollTop=1e9; }
+        if(ev.type==="done"){ progStep("answer","Answered","done"); addUsed(ev.model); $("#pstate").textContent="done"; chatActs(box,text,acc); }
+        if(ev.type==="error"){ box.textContent=(acc?acc+"\n\n":"")+"⚠ "+ev.text; progStep("answer",ev.text,"err"); }
+      },chatAbort.signal);
+      }catch(e){ if(e.name==="AbortError"){ box.textContent=(acc||"")+(acc?"\n\n":"")+"■ Stopped."; progStep("answer","Stopped","err"); } else throw e; }
+      finally{ clearInterval(tick); chatAbort=null; }
+    }else{
+      $("#send").style.display="none"; $("#stop").style.display="inline-block";
+      let url, body;
+      if(mode==="video"){ body=new FormData(); body.append("file",videoFile); body.append("question",text); if(provider) body.append("provider",provider); url="/api/video"; videoFile=null; }
+      else if(runMode==="agent"){ url="/api/agent"; body={message:text,images:sent,provider,session,allow_screen:$("#allowscreen").checked,allow_commands:$("#allowcmd").checked}; }
+      else { url="/api/crew"; const inputs={}; $$("#crewinputs input").forEach(i=>inputs[i.dataset.k]=i.value); if(text) inputs.extra=text; body={crew:$("#crewsel").value,inputs,provider}; }
+      await runStream(url,body);
+    }
+  }catch(e){ add("msg bot","⚠ "+esc(e.message)); }
+  endBusy();
+}
+function endBusy(){ busy=false; runId=null; $("#send").disabled=false; $("#send").style.display=""; $("#stop").style.display="none"; loadRecent(); status(); }
+$("#send").onclick=send;
+$("#stop").onclick=()=>{ if(chatAbort){ chatAbort.abort(); return; } if(runId) api("/api/stop",{run:runId}).catch(()=>{}); $("#stop").textContent="Stopping…"; setTimeout(()=>$("#stop").textContent="Stop",2500); };
+
+/* shared runner for agent / crew / video / workflow / automation */
+const PERM={write_file:"save a file",run_command:"run a command",web_fetch:"open a web page",look_at_screen:"take a screenshot",
+  copy_files:"copy files",move_files:"move files",make_folder:"create a folder",rename_file:"rename a file",
+  write_excel:"write an Excel file",append_excel_rows:"add rows to a spreadsheet",undo_last_move:"undo the last move"};
+async function runStream(url,body,onNode){
+  let answerBox=null, traceId=null, n=0;
+  resetProgress({"/api/agent":"Agent","/api/crew":"Crew","/api/video":"Video","/api/workflows/run":"Workflow"}[url]||"Automation");
+  await stream(url,body,ev=>{
+    switch(ev.type){
+      case "run": runId=ev.id; break;
+      case "permission": permCard(ev); progStep("perm-"+ev.id,`Waiting for you: ${PERM[ev.tool]||ev.tool}`,"wait"); break;
+      case "permission_done": progStep("perm-"+ev.id,ev.decision==="deny"?"Denied":"Approved",ev.decision==="deny"?"err":"done"); break;
+      case "task": add("step",`<span><b>Task ${ev.n} → ${esc(ev.agent)}</b></span>`); $$("#steps .ps.run").forEach(p=>p.className="ps done"); progStep("task"+ev.n,ev.agent,"run",ev.description.slice(0,90)); break;
+      case "tool": add("step",`<span><b>${esc(ev.agent)}</b> used <b>${esc(ev.tool)}</b> ${esc(JSON.stringify(ev.input).slice(0,120))}<div class="sx">${esc(ev.result.slice(0,400))}</div></span>`);
+        progStep("tool"+(n++),ev.tool,ev.result.startsWith("Error")?"err":"done",ev.result.slice(0,90)); noteOutput(ev.result); addUsed(ev.tool); break;
+      case "decision": progStep("dec-"+ev.id,`Decided: ${ev.label}`,"done",`${Math.round(ev.confidence*100)}% · ${ev.method}`); break;
+      case "delegate": add("step",`<span><b>${esc(ev.agent)}</b> handed a job to <b>${esc(ev.to)}</b>: ${esc(ev.task.slice(0,140))}</span>`);
+        progStep("dlg"+(n++),`→ ${ev.to}`,"run",ev.task.slice(0,90)); addUsed(ev.to); break;
+      case "frame": progStep("frame"+ev.n,`Frame ${ev.n}/${ev.of} · ${ev.time}s`,"done",ev.description); break;
+      case "status": progStep("st"+(n++),ev.text,"done"); break;
+      case "node": if(onNode) onNode(ev); progStep("node-"+ev.id,ev.label||ev.id,{running:"run",done:"done",error:"err",skipped:"skip"}[ev.status],(ev.output||"").slice(0,90)); if(ev.output) noteOutput(ev.output); break;
+      case "denied": add("step",`<span><b>${esc(ev.agent||"Agent")}</b> was told no${ev.why?" ("+esc(ev.why)+")":""} — it won't try that again.</span>`); break;
+      case "limit": add("step",`<span>Ran out of steps — giving the best answer so far.</span>`); break;
+      case "stopped": add("msg bot","■ "+esc(ev.text)); $("#pstate").textContent="stopped"; break;
+      case "error": add("msg bot","⚠ "+esc(ev.text)); $("#pstate").textContent="failed"; break;
+      case "result": { const r=ev.result||{}; $$("#steps .ps.run").forEach(p=>p.className="ps done");
+        answerBox=r.summary!==undefined?showVideo(r):add("msg bot",esc(r.answer??r.final??"")); $("#pstate").textContent="done"; break; }
+      case "trace": traceId=ev.id; runActs(answerBox||add("msg bot",""),traceId,ev.status); break;
+    }
+  });
+  return traceId;
+}
+function permCard(ev){
+  const html=`<h4>${esc(ev.agent)} wants to ${esc(PERM[ev.tool]||"use "+ev.tool)}</h4><pre>${esc(ev.preview)}</pre>
+    <div class="row"><button class="yes" data-d="once">Allow once</button><button data-d="task">Allow for this task</button><button data-d="deny">Deny</button></div>`;
+  const cards=[add("perm",html)];
+  if(view!=="chat"){                       // also show it where you are (Canvas, Brain…)
+    const c=document.createElement("div"); c.className="perm"; c.innerHTML=html; c.style.marginBottom="10px";
+    $("#panel .scroll").prepend(c); cards.push(c);
+    if(innerWidth<1150) $("#panel").classList.add("force"); else $("#panel").classList.remove("hide");
+  }
+  const decide=async decision=>{
+    const label=decision==="deny"?"✕ Denied":decision==="task"?"✓ Allowed for the rest of this task":"✓ Allowed once";
+    cards.forEach(c=>{ const r=c.querySelector(".row"); if(r) r.outerHTML=`<div class="doneline">${label}</div>`; });
+    if(cards[1]) setTimeout(()=>cards[1].remove(),1500);
+    try{ await api("/api/permission",{run:ev.run,id:ev.id,decision}); }catch(e){ cards[0].insertAdjacentHTML("beforeend",`<div class="doneline">Request expired — nothing was done.</div>`); }
+  };
+  cards.forEach(c=>c.querySelectorAll(".row button").forEach(b=>b.onclick=()=>decide(b.dataset.d)));
+  try{ if(document.hidden&&"Notification" in window&&Notification.permission==="granted") new Notification("NestCrew needs your approval"); }catch(e){}
+}
+try{ if("Notification" in window&&Notification.permission==="default") Notification.requestPermission(); }catch(e){}
+function chatActs(box,q,a){
+  const d=document.createElement("div"); d.className="acts";
+  d.innerHTML=`<button data-a="copy">Copy</button><button data-a="bad">Report a problem</button>`;
+  d.querySelector('[data-a=copy]').onclick=()=>{ navigator.clipboard?.writeText(a); toast("Copied"); };
+  d.querySelector('[data-a=bad]').onclick=async()=>{ const note=prompt("What was wrong with this answer?"); if(note===null)return;
+    await api("/api/incidents/report",{trace_id:null,note:`Chat: "${q.slice(0,80)}" — ${note}`}); d.innerHTML=`<span class="done">Logged as an incident</span>`; status(); };
+  box.appendChild(d);
+}
+function runActs(box,tid,st){
+  const d=document.createElement("div"); d.className="acts";
+  d.innerHTML=(st==="ok"?`<button data-a="good">👍 Good</button><button data-a="bad">👎 Bad</button>`:"")+`<button data-a="cap" title="Repeat this task with AI: same goal, same tools">◇ Save as AI flow</button><button data-a="bot" title="Replay the exact same steps, no AI needed — like an RPA bot">⚙ Save as RPA bot</button><button data-a="open">See all steps</button>`;
+  d.querySelectorAll("button").forEach(b=>b.onclick=async()=>{
+    const a=b.dataset.a;
+    if(a==="good"){ await api("/api/traces/rate",{id:tid,good:true}); d.querySelector('[data-a=bad]')?.remove(); b.outerHTML=`<span class="done">👍 Saved — it will guide similar tasks and can be exported for training</span>`; }
+    if(a==="bad"){ const note=prompt("What went wrong? (helps fix it next time)",""); if(note===null)return; await api("/api/traces/rate",{id:tid,good:false,note}); d.querySelector('[data-a=good]')?.remove(); b.outerHTML=`<span class="done" style="color:var(--bad)">Logged as an incident</span>`; status(); }
+    if(a==="cap"||a==="bot"){ try{ const wf=await api("/api/workflows/from_trace",{id:tid,steps:a==="bot"});
+        toast(a==="bot"?"Saved as an RPA bot — every step replays exactly":"Saved as an AI flow — opening the Canvas"); WF=null; show("canvas"); await openWorkflow(wf.id); }
+      catch(e){ toast(e.message); } }
+    if(a==="open") openRun(tid);
+  });
+  box.appendChild(d);
+}
+function showVideo(r){
+  let h=esc(r.summary); if(r.svg) h+=`<div class="chart">${r.svg}</div>`;
+  h+=`<table class="tl"><tr><th>Time</th><th>Value</th><th>What's happening</th></tr>`+(r.rows||[]).map(x=>`<tr><td>${x.time}s</td><td>${x.value??"–"}</td><td>${esc(x.description)}</td></tr>`).join("")+`</table>`;
+  Object.values(r.files||{}).forEach(f=>noteOutput("Saved to "+f));
+  return add("msg bot",h);
+}
+
+/* ---------------------------------------------------------------- progress panel */
+let used=new Set();
+function resetProgress(kind){ $("#steps").innerHTML=`<div class="pempty">Steps appear here while a task runs.</div>`; $("#outs").innerHTML=`<div class="pempty">Files and notes created by tasks.</div>`; used=new Set(); $("#used").innerHTML="<span>—</span>"; $("#pstate").textContent=kind?"running":""; if(kind) addUsed(kind); }
+function progStep(k,label,st,sub){
+  let el=[...$$("#steps .ps")].find(x=>x.dataset.k===k);
+  if(!el){ el=document.createElement("div"); el.dataset.k=k; $("#steps").appendChild(el); $("#steps .pempty")?.remove(); }
+  el.className="ps "+(st||"run"); el.innerHTML=`<span class="b"></span><span class="tx">${esc(label)}${sub?`<small>${esc(sub)}</small>`:""}</span>`;
+}
+function noteOutput(text){
+  const m=String(text).match(/(workspace\/[^\s(),]+|notes\/[^\s(),]+)/); if(!m) return;
+  const p=m[1].startsWith("workspace/")?m[1]:"workspace/"+m[1];
+  if([...$$("#outs .t")].some(x=>x.textContent===p)) return;
+  $("#outs .pempty")?.remove(); $("#outs").insertAdjacentHTML("beforeend",`<div class="out">📄<span class="t" title="${esc(p)}">${esc(p)}</span></div>`);
+}
+function addUsed(x){ if(!x||used.has(x)) return; used.add(x); $("#used").innerHTML=[...used].map(u=>`<span>${esc(u)}</span>`).join(""); }
+
+/* ---------------------------------------------------------------- brain */
+async function loadBrain(){
+  const b=await api("/api/brain"), runs=await api("/api/traces");
+  $("#brain").innerHTML=`<h2 class="sec">Brain</h2>
+    <p class="note">Every task is recorded as a trace. 👍 traces guide similar tasks right away and become training data; 👎 opens an incident. Capture any run as a Canvas workflow to repeat or schedule it.</p>
+    <div class="stats"><div class="stat"><b>${b.total}</b><span>runs recorded</span></div><div class="stat"><b>${b.trainable}</b><span>👍 ready for training</span></div>
+    <div class="stat"><b>${b.open_incidents}</b><span>open incidents</span></div><div class="stat"><b>${b.system1?"On":"Keywords"}</b><span>System 1 · ${esc(b.system1_model)}</span></div></div>
+    <svg id="bubbles" viewBox="0 0 760 195" role="img"><title>Runs by task type: size = runs, colour = success rate</title>${bubbles(Object.entries(b.by_type))}</svg>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap"><button class="btn2 pri" id="exp">Export training data (👍 only)</button><button class="btn2" id="expall">Export incl. unrated</button></div>
+    <input class="search" id="bq" placeholder="Search runs…"><div id="runlist"></div>`;
+  const draw=list=>{ $("#runlist").innerHTML=list.map(t=>`<div class="row2"><span class="kdot ${esc(t.kind)} ${t.status!=="ok"?"err":""}" style="margin-top:7px"></span>
+      <div class="info"><b>${esc(t.title)}</b><div>${esc(t.kind)} · ${esc(t.task_type||"")} · ${t.steps} steps · ${t.duration}s · ${new Date(t.started*1000).toLocaleString()} · ${esc(t.status)}${t.rating>0?" · 👍":t.rating<0?" · 👎":""}</div></div>
+      <button class="btn2" data-id="${esc(t.id)}">Open</button></div>`).join("")||`<div class="pempty">No runs yet — give the Agent a task.</div>`;
+    $$("#runlist button").forEach(b=>b.onclick=()=>openRun(b.dataset.id)); };
+  draw(runs);
+  $("#bq").oninput=async e=>draw(await api("/api/traces?q="+encodeURIComponent(e.target.value)));
+  const ex=async all=>{ const r=await api("/api/training/export"+(all?"?include_unrated=true":""),{}); toast(`Exported ${r.good} good + ${r.rejected} rejected examples → ${r.good_file}`); };
+  $("#exp").onclick=()=>ex(false); $("#expall").onclick=()=>ex(true);
+}
+function bubbles(by){
+  if(!by.length) return `<text x="380" y="100" text-anchor="middle" fill="currentColor" opacity=".5" font-size="13">Your task map grows here as you use NestCrew</text>`;
+  const items=by.sort((a,b)=>b[1].runs-a[1].runs).slice(0,9), max=items[0][1].runs, w=760/items.length;
+  return items.map(([k,v],i)=>{ const r=14+44*Math.sqrt(v.runs/max), cx=w*i+w/2, rate=v.runs?v.ok/v.runs:0;
+    const col=rate>.8?"var(--ok)":rate>.5?"var(--warn)":"var(--bad)";
+    return `<circle cx="${cx}" cy="82" r="${r}" fill="${col}" fill-opacity=".18" stroke="${col}"/><text x="${cx}" y="87" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">${v.runs}</text>
+      <text x="${cx}" y="168" text-anchor="middle" font-size="11.5" fill="currentColor" opacity=".75">${esc(k)}</text><text x="${cx}" y="184" text-anchor="middle" font-size="10.5" fill="currentColor" opacity=".55">${Math.round(rate*100)}% ok · ${v.good}👍</text>`; }).join("");
+}
+async function openRun(id){
+  let t; try{ t=await api("/api/traces/"+encodeURIComponent(id)); }catch(e){ toast(e.message); return; }
+  show("run"); $("#title").textContent=t.title;
+  const nodes=[`<div class="tn"><b>Task</b><pre>${esc(t.title)}</pre></div>`];
+  for(const e of t.events){
+    if(e.type==="tool") nodes.push(`<div class="tn tool ${String(e.result).startsWith("Error")?"err":""}"><b>${esc(e.agent)} → ${esc(e.tool)}</b> <span class="tag">${esc(JSON.stringify(e.input).slice(0,90))}</span>${e.thought?`<pre>💭 ${esc(e.thought)}</pre>`:""}<pre>${esc(e.result)}</pre></div>`);
+    if(e.type==="permission") nodes.push(`<div class="tn ask"><b>Asked you: ${esc(PERM[e.tool]||e.tool)}</b></div>`);
+    if(e.type==="denied") nodes.push(`<div class="tn err"><b>Denied: ${esc(e.tool)}</b>${e.why?`<pre>${esc(e.why)}</pre>`:""}</div>`);
+    if(e.type==="node" && e.status!=="running") nodes.push(`<div class="tn ${e.status==="error"?"err":"tool"}"><b>Step ${esc(e.id)} · ${esc(e.status)}</b>${e.output?`<pre>${esc(e.output)}</pre>`:""}</div>`);
+    if(e.type==="frame") nodes.push(`<div class="tn tool"><b>Frame ${e.time}s</b><pre>${esc(e.description)}</pre></div>`);
+    if(e.type==="error") nodes.push(`<div class="tn err"><b>Failed</b><pre>${esc(e.text)}</pre></div>`);
+  }
+  nodes.push(`<div class="tn final ${t.status!=="ok"?"err":""}"><b>${t.status==="ok"?"Result":esc(t.status)}</b><pre>${esc(t.result)}</pre></div>`);
+  $("#rundetail").innerHTML=`<div class="note">${esc(t.kind)} · ${esc(t.model||"")} · ${t.duration}s · ${new Date(t.started*1000).toLocaleString()} · ${esc(t.status)}${t.rating>0?" · 👍":t.rating<0?" · 👎":""}</div>
+    <div class="tgraph">${nodes.join("")}</div><div id="runacts"></div>`;
+  runActs($("#runacts"),t.id,t.rating?"rated":t.status);
+}
+
+/* ---------------------------------------------------------------- incidents */
+async function loadIncidents(){
+  const list=await api("/api/incidents");
+  $("#incidents").innerHTML=`<h2 class="sec">Incidents</h2>
+    <p class="note">Collected automatically: failed runs, blocked dangerous commands, approvals that timed out, step limits and stops — plus anything you report with 👎. Resolve each with a note on what fixed it (a model switch, a clearer prompt, a permission).</p>
+    <div style="margin-bottom:12px"><button class="btn2" id="newinc">Report something</button></div>
+    ${list.map(i=>`<div class="row2" style="${i.status!=="open"?"opacity:.6":""}"><span class="sev ${esc(i.severity)}">${esc(i.severity)}</span>
+      <div class="info"><b>${esc(i.title)}</b><div>${esc(i.kind)} · ${new Date(i.ts*1000).toLocaleString()}${i.status!=="open"?" · resolved"+(i.note?": "+esc(i.note):""):""}</div>${i.detail?`<div style="white-space:pre-wrap">${esc(i.detail.slice(0,300))}</div>`:""}</div>
+      ${i.trace_id?`<button class="btn2" data-run="${esc(i.trace_id)}">Run</button>`:""}${i.status==="open"?`<button class="btn2" data-res="${i.id}">Resolve</button>`:""}</div>`).join("")||`<div class="pempty">No incidents. 🎉</div>`}`;
+  $$("#incidents [data-run]").forEach(b=>b.onclick=()=>openRun(b.dataset.run));
+  $$("#incidents [data-res]").forEach(b=>b.onclick=async()=>{ const note=prompt("What fixed it?",""); if(note===null)return; await api("/api/incidents/resolve",{id:+b.dataset.res,note}); loadIncidents(); status(); });
+  $("#newinc").onclick=async()=>{ const note=prompt("Describe the problem"); if(!note)return; await api("/api/incidents/report",{trace_id:null,note}); loadIncidents(); status(); };
+}
+
+/* ---------------------------------------------------------------- automations */
+async function loadAutos(){
+  let list; try{ list=await api("/api/automations"); }catch(e){ $("#autolist").textContent="⚠ "+e.message; return; }
+  $("#autolist").innerHTML=list.map(a=>`<div class="row2"><input type="checkbox" ${a.enabled?"checked":""} data-n="${esc(a.name)}" title="On/off" style="margin-top:4px;accent-color:var(--accent)">
+    <div class="info"><b>${esc(a.name.startsWith("wf:")?"◇ "+a.name.slice(3):a.name)}</b><div>${esc(a.when)} → ${esc(a.action)}${a.allow.length?" · pre-approved: "+esc(a.allow.join(", ")):" · no risky tools"}</div>
+    ${a.last_run?`<div>Last run ${esc(a.last_run.replace("T"," "))}: ${esc(a.last_result)}</div>`:""}</div>
+    <button class="btn2" data-run="${esc(a.name)}">Run now</button></div>`).join("")||"No automations yet.";
+  $$("#autolist input").forEach(c=>c.onchange=async()=>{ try{ await api("/api/automations/toggle",{name:c.dataset.n,enabled:c.checked}); toast(c.dataset.n+(c.checked?" on":" off")); }catch(e){ c.checked=!c.checked; toast(e.message); } });
+  $$("#autolist [data-run]").forEach(b=>b.onclick=async()=>{ if(busy) return; show("chat"); add("msg user","Run automation: "+esc(b.dataset.run)); busy=true;
+    $("#send").style.display="none"; $("#stop").style.display="inline-block";
+    await runStream("/api/automations/run",{name:b.dataset.run}); endBusy(); });
+}
+
+/* ---------------------------------------------------------------- models */
+async function loadModels(){
+  let d; try{ d=await api("/api/models"); }catch(e){ $("#mgrid").textContent="⚠ "+e.message; return; }
+  const visible=d.models.filter(m=>m.kind!=="embedding");
+  $("#jobs").innerHTML=Object.entries(d.task_help).map(([t,help])=>{ const cur=d.models.find(m=>m.id===d.tasks[t]); const jh=cur?.job_hints?.[t];
+    return `<label>${esc(help)}<select data-task="${t}">${visible.map(m=>{const h=m.job_hints[t]; return `<option value="${m.id}" ${m.id===d.tasks[t]?"selected":""} ${h.level==="no"?"disabled":""}>${h.level==="best"?"★ ":""}${esc(m.name)}${m.installed?"":" (not downloaded)"}${h.level==="no"?" — can't":""}</option>`;}).join("")}</select>
+      <span class="jh ${jh?.level||""}">${esc(jh?.text||"")}</span></label>`; }).join("");
+  $$("#jobs select").forEach(sel=>sel.onchange=async()=>{ try{ await api("/api/models/assign",{task:sel.dataset.task,model:sel.value}); toast("Saved: "+sel.dataset.task+" → "+sel.selectedOptions[0].text.replace("★ ","")); } catch(e){ toast(e.message); } loadModels(); });
+  try{ const b=await api("/api/brain"), sv=await api("/api/system1/servers");
+    const opts=[["local","Local · MiniLM (offline, private)","46 MB embedding model on this PC. Nothing leaves the PC."],
+      ["laya","Laya 421M (offline, private)","Open System One model (Apache-2.0) on this PC, CPU, ~1 GB RAM. Real typed decisions with confidence."],
+      ["kev","Kev (your local server)","Jared Palmer's Kev on Qwen3.5 — start its server on port 8009 (see Guide)."],
+      ["openjev","OpenJev 8B (your local server)","Needs a GPU — start `wev serve` on port 8009 (see Guide)."],
+      ["cribl","cribl-decision-1.0 (your local server)","Qwen3.5-4B adapter, needs a GPU and its structured readout server (see Guide)."],
+ ];
+    const cur=opts.find(o=>o[0]===b.engine)||opts[0];
+    let state="", warn=false;
+    if(sv.servers[b.engine]){ const up=sv.servers[b.engine].up; state=up?" — server running ✓":" — server not running; using local for now."; warn=!up; }
+    const layaBtn=b.engine==="laya"&&!sv.servers.laya.up?(sv.laya_installed?`<button class="btn2 pri" id="layastart">Start Laya</button>`:`<button class="btn2 pri" id="layainst">Install Laya (~1 GB incl. PyTorch)</button>`):"";
+    $("#s1eng").innerHTML=`<label>Engine<select id="s1sel">${opts.map(([v,l])=>`<option value="${v}" ${b.engine===v?"selected":""}>${l}</option>`).join("")}</select>
+      <span class="jh ${warn?"no":"good"}">${esc(cur[2])}${esc(state)}</span></label><div style="display:flex;flex-direction:column;gap:6px;justify-content:center">${layaBtn}<span class="jh" id="layaprog"></span></div>`;
+    $("#s1sel").onchange=async e=>{ const r=await api("/api/system1/engine",{engine:e.target.value}); toast("System 1 engine: "+e.target.selectedOptions[0].text+(r.laya==="starting"?" — starting Laya…":"")); loadModels(); status(); };
+    if($("#layastart")) $("#layastart").onclick=async()=>{ const r=await api("/api/system1/start_laya",{}); toast("Laya: "+r.status+" (first start downloads the model)"); setTimeout(loadModels,8000); };
+    if($("#layainst")) $("#layainst").onclick=async()=>{ if(!confirm("Download and install Laya (open-source, Apache-2.0) with PyTorch into NestCrew? About 1 GB, needs internet once.")) return;
+      $("#layainst").disabled=true; await stream("/api/system1/install_laya",{},ev=>{ $("#layaprog").textContent=ev.status; }); setTimeout(loadModels,4000); };
+  }catch(e){}
+  const fitTag={easy:'<span class="tag ok">light for this PC</span>',ok:'<span class="tag">fine for this PC</span>',heavy:'<span class="tag warn">heavy for this PC</span>'};
+  $("#mgrid").innerHTML=d.models.map(m=>`<div class="card" data-id="${esc(m.id)}">
+    <h3>${esc(m.name)}</h3><div class="sub">${esc(m.params)} params · ${esc(m.download)} · ${esc(m.ram)} RAM</div>
+    <div class="best">${esc(m.best_for)}</div><div class="sub">${esc(m.key_feature)}<br>Limits: ${esc(m.limits)}</div>
+    <div>${m.installed?'<span class="tag ok">on this PC</span>':'<span class="tag">not downloaded</span>'} ${fitTag[m.fit]||""} ${m.kind==="embedding"?'<span class="tag">System 1</span>':m.vision?'<span class="tag">sees images</span>':'<span class="tag">text only</span>'} ${m.tools?'<span class="tag">tool use</span>':''} ${m.backend!=="ollama"?'<span class="tag">'+esc(m.backend)+'</span>':''} ${m.used_for.map(t=>'<span class="tag ok">'+esc(t)+'</span>').join(" ")}</div>
+    <div class="row">${m.installed?(m.backend==="ollama"?'<button class="btn2" data-act="remove">Remove</button>':''):(m.backend==="ollama"?'<button class="btn2 pri" data-act="pull">Download</button>':'')}
+    ${m.kind!=="embedding"?'<button class="btn2" data-act="try">Use in chat</button>':''}</div><div class="sub prog"></div></div>`).join("");
+  $$("#mgrid button").forEach(b=>b.onclick=()=>modelAction(b.closest(".card").dataset.id,b.dataset.act,b.closest(".card")));
+  const cur=$("#provider").value; $("#pcmodels").innerHTML=visible.filter(m=>m.installed).map(m=>`<option value="${esc(m.id)}">${esc(m.name)}</option>`).join(""); $("#provider").value=cur;
+}
+async function modelAction(id,act,card){
+  if(act==="try"){ $("#provider").value=id; if($("#provider").value!==id){ toast("Download it first"); return; } setMode("chat"); show("chat"); toast("Chat now uses "+id); return; }
+  if(act==="remove"){ if(!confirm("Remove this model from your PC? You can download it again later.")) return; try{ await api("/api/models/remove",{model:id}); }catch(e){ toast(e.message); } loadModels(); return; }
+  const prog=card.querySelector(".prog"); card.querySelectorAll("button").forEach(b=>b.disabled=true);
+  await stream("/api/models/pull",{model:id},ev=>{ prog.textContent=ev.status+(ev.percent!=null?" "+ev.percent+"%":""); });
+  loadModels(); status();
+}
+
+/* ---------------------------------------------------------------- canvas */
+let WF=null, NT={}, CREWS=[], selNode=null, selEdge=null, dirty=false;
+const ICON={trigger:["▶","#1d9e75"],screen:["🖥","#534ab7"],vision:["👁","#534ab7"],video:["🎬","#534ab7"],decide:["◆","#d4537e"],condition:["?","#d4537e"],llm:["✦","#c4562d"],tool:["🔧","#5f5e5a"],output:["■","#1d9e75"],agent:["🤖","#c4562d"],crew:["👥","#c4562d"],note:["📄","#5f5e5a"]};
+const TIPS={
+  trigger:"How the workflow starts. Manual = Run now. Watch = each new file in a workspace folder. Daily / Every = on a schedule (NestCrew must be open).",
+  screen:"Takes a screenshot and asks the small screen model. It asks your permission each run; tick 'allowed in automatic runs' only for scheduled workflows you trust.",
+  vision:"Looks at the trigger's image. Job: documents for invoices/forms (Granite Vision), image for photos (LFM2-VL), screen for screenshots (SmolVLM2).",
+  video:"Reads the trigger's video frame by frame with the tiny video model and saves a CSV + chart in notes/.",
+  decide:"System 1 picks one label instantly — no text generation. Give each label a few example phrases, then click an arrow leaving this step to choose which label it follows. Engine (Models page): Laya (default), Kev, OpenJev, Cribl or MiniLM — all free and on this PC.",
+  condition:"Plain text check. Arrows fire on 'yes'; set an arrow to 'no' for the other branch.",
+  llm:"One model call without tools — for checking, rewriting or summarising the previous step. {input} is the previous output.",
+  agent:"An agent with tools. Risky tools ask you during Run now; for automatic runs, tick them as pre-approved or they're denied.",
+  crew:"Runs a crew recipe from the crews folder. Inputs can use {input} and {file}.",
+  note:"Saves text to a note in your workspace (append or overwrite — overwriting keeps a backup). Placeholders: {input} {date} {file}.",
+  tool:"Runs one tool directly with fixed arguments — e.g. read a notes file before summarising it. Risky tools still ask you.",
+  output:"Marks the workflow's final answer (shown in chat when you Run now)."
+};
+async function loadCanvas(){
+  const d=await api("/api/workflows"); NT=d.node_types; CREWS=d.crews;
+  $("#wfsel").innerHTML=`<option value="">— open a workflow —</option>`+
+    (d.workflows.length?`<optgroup label="My workflows">${d.workflows.map(w=>`<option value="${esc(w.id)}">${esc(w.name)}${w.enabled?" ⏱":""}</option>`).join("")}</optgroup>`:"")+
+    `<optgroup label="Start from a template">${d.templates.map(t=>`<option value="tpl:${esc(t.id)}">${esc(t.name)}</option>`).join("")}</optgroup><option value="new">+ Blank workflow</option>`;
+  $("#palette").innerHTML="Add step:"+Object.entries(NT).filter(([k])=>k!=="trigger").map(([k,v])=>`<button data-t="${k}">${ICON[k][0]} ${esc(v.label)}</button>`).join("");
+  $$("#palette button").forEach(b=>b.onclick=()=>addNode(b.dataset.t));
+  if(WF){ $("#wfsel").value=WF.id||""; drawWF(); } else if(d.workflows.length) await openWorkflow(d.workflows[0].id); else newWorkflow();
+}
+$("#wfsel").onchange=async e=>{ const v=e.target.value; if(!v) return;
+  if(dirty && !confirm("Discard unsaved changes?")){ e.target.value=WF?.id||""; return; }
+  if(v==="new") newWorkflow(); else if(v.startsWith("tpl:")){ const wf=await api("/api/workflows/from_template",{id:v.slice(4)}); WF=wf; dirty=false; await loadCanvas(); toast("Template copied — edit it and Save"); } else openWorkflow(v); };
+async function openWorkflow(id){ CMP=null; $("#cmpbar").style.display="none"; WF=await api("/api/workflows/"+encodeURIComponent(id)); dirty=false; selNode=selEdge=null; if(NT.trigger){ $("#wfsel").value=id; drawWF(); } }
+function newWorkflow(name){ WF={name:name||"New workflow",enabled:false,nodes:[{id:"start",type:"trigger",x:60,y:160,title:"Start",config:{mode:"manual"}}],edges:[]}; dirty=true; selNode=selEdge=null; drawWF(); }
+async function newWorkflowFromText(text){
+  WF=null; show("canvas"); await loadCanvas();
+  const daily=/morning|daily|every day|at \d/i.test(text), watch=/whenever|each time|new (file|screenshot|invoice|photo)/i.test(text);
+  newWorkflow(text.slice(0,50));
+  WF.nodes[0].config=daily?{mode:"daily",daily:"09:00"}:watch?{mode:"watch",watch:"inbox/new",pattern:"*"}:{mode:"manual"};
+  WF.nodes.push({id:"a1",type:"agent",x:330,y:160,title:"Do the task",config:{prompt:text,tools:["list_files","read_file","write_file"],allow:[]}});
+  WF.nodes.push({id:"n1",type:"note",x:600,y:160,title:"Save result",config:{save_to:"notes/workflow.md",template:"## {date}\n{input}\n"}});
+  WF.edges=[{from:"start",to:"a1"},{from:"a1",to:"n1"}]; selNode="start"; drawWF(); toast("Drafted from your request — check the steps, then Save");
+}
+function nid(t){ let i=1; while(WF.nodes.some(n=>n.id===t+i)) i++; return t+i; }
+function addNode(t){
+  if(CMP) endCompare();
+  const sc=$("#cv"), last=WF.nodes[WF.nodes.length-1];
+  const n={id:nid(t),type:t,x:(last?.x??40)+260,y:last?.y??160,title:NT[t].label,config:JSON.parse(JSON.stringify(NT[t].defaults))};
+  if(n.x>sc.scrollLeft+sc.clientWidth-220){ n.x=sc.scrollLeft+80; n.y=(last?.y??160)+150; }
+  WF.nodes.push(n); if(last && !WF.edges.some(e=>e.from===last.id)) WF.edges.push({from:last.id,to:n.id});
+  selNode=n.id; selEdge=null; dirty=true; drawWF();
+}
+function summary(n){ const c=n.config||{};
+  return ({trigger:c.mode==="watch"?`new files in ${c.watch||"?"}`:c.mode==="daily"?`daily at ${c.daily||"09:00"}`:c.mode==="every"?`every ${c.every_minutes||60} min`:"when you click Run",
+    screen:c.question,vision:`${c.task||"image"}: ${c.prompt||""}`,video:c.question,decide:Object.keys(c.options||{}).join(" / "),condition:`contains "${c.contains||""}"${c.negate?" (not)":""}`,
+    llm:c.prompt,agent:c.prompt,crew:c.crew,note:(c.mode==="overwrite"?"overwrite ":"append to ")+(c.save_to||""),tool:`${c.tool||""} ${JSON.stringify(c.args||{})}`,output:"shown as the answer"})[n.type]||""; }
+let CMP=null;   // {version, diff, old}
+function drawWF(){
+  if(!WF) return;
+  $("#wfname").value=WF.name||""; $("#wfen").checked=!!WF.enabled;
+  $$("#cvin .nd").forEach(x=>x.remove());
+  const dmark=id=>!CMP?"":CMP.diff.added.includes(id)?" d-add":CMP.diff.changed.some(c=>c.id===id&&!c.moved_only)?" d-chg":"";
+  if(CMP) for(const n of CMP.diff.removed_nodes){
+    const d=document.createElement("div"); d.className="nd d-del"; d.style.left=n.x+"px"; d.style.top=n.y+"px";
+    const [ic,col]=ICON[n.type]||["•","#888"];
+    d.innerHTML=`<div class="hd"><span class="ico" style="background:${col}">${ic}</span>${esc(NT[n.type]?.label||n.type)}</div><div class="nt">${esc(n.title||n.type)}</div><div class="ns">${esc(summary(n))}</div>`;
+    $("#cvin").appendChild(d);
+  }
+  for(const n of WF.nodes){
+    const d=document.createElement("div"); d.className="nd"+(n.id===selNode?" sel":"")+dmark(n.id); d.dataset.id=n.id; d.style.left=n.x+"px"; d.style.top=n.y+"px";
+    const [ic,col]=ICON[n.type]||["•","#888"];
+    d.innerHTML=`${n.type!=="trigger"?'<span class="pin"></span>':""}<div class="hd"><span class="ico" style="background:${col}">${ic}</span>${esc(NT[n.type]?.label||n.type)}</div>
+      <div class="nt">${esc(n.title||n.type)}</div><div class="ns">${esc(summary(n))}</div><span class="pout" title="Drag onto another step to connect"></span>`;
+    $("#cvin").appendChild(d);
+    d.querySelector(".hd").onmousedown=e=>dragNode(e,n,d);
+    d.onclick=e=>{ if(e.target.classList.contains("pout"))return; selNode=n.id; selEdge=null; drawWF(); };
+    d.querySelector(".pout").onmousedown=e=>dragWire(e,n);
+  }
+  drawEdges(); inspector();
+}
+function port(n,side){ return {x:n.x+(side==="out"?196:0), y:n.y+28}; }
+function curve(a,b){ const dx=Math.max(40,Math.abs(b.x-a.x)/2); return `M${a.x} ${a.y} C${a.x+dx} ${a.y} ${b.x-dx} ${b.y} ${b.x} ${b.y}`; }
+function drawEdges(live){
+  const N=Object.fromEntries(WF.nodes.map(n=>[n.id,n]));
+  $("#edges").innerHTML=WF.edges.map((e,i)=>{ const a=N[e.from], b=N[e.to]; if(!a||!b) return "";
+    const p=curve(port(a,"out"),port(b,"in")), mx=(a.x+196+b.x)/2, my=(a.y+b.y)/2+22;
+    const added=CMP&&CMP.diff.edges_added.some(x=>x[0]===e.from&&x[1]===e.to)?"d-add":"";
+    return `<path d="${p}" class="${selEdge===i?"sel":""} ${live?.has(e.from+">"+e.to)?"live":""} ${added}"/><path d="${p}" class="hit" data-i="${i}"/>${e.when?`<text x="${mx}" y="${my}" text-anchor="middle">${esc(e.when)}</text>`:""}`; }).join("")
+    + (CMP?CMP.diff.edges_removed.map(([f,t])=>{ const all={...Object.fromEntries(CMP.old.nodes.map(n=>[n.id,n]))}; const a=all[f], b=all[t]; return a&&b?`<path d="${curve(port(a,"out"),port(b,"in"))}" class="d-del"/>`:""; }).join(""):"")
+    + `<path id="wire" d="" style="stroke:var(--accent);stroke-dasharray:5 4"/>`;
+  $$("#edges .hit").forEach(p=>p.onclick=e=>{ e.stopPropagation(); selEdge=+p.dataset.i; selNode=null; drawWF(); });
+}
+function dragNode(e,n,d){ e.preventDefault(); const sx=e.clientX-n.x, sy=e.clientY-n.y;
+  const mv=ev=>{ n.x=Math.max(0,Math.round((ev.clientX-sx)/10)*10); n.y=Math.max(0,Math.round((ev.clientY-sy)/10)*10); d.style.left=n.x+"px"; d.style.top=n.y+"px"; drawEdges(); dirty=true; };
+  const up=()=>{ removeEventListener("mousemove",mv); removeEventListener("mouseup",up); };
+  addEventListener("mousemove",mv); addEventListener("mouseup",up); }
+function dragWire(e,n){ e.preventDefault(); e.stopPropagation(); const box=$("#cvin").getBoundingClientRect(), a=port(n,"out");
+  const mv=ev=>{ $("#wire")?.setAttribute("d",curve(a,{x:ev.clientX-box.left,y:ev.clientY-box.top})); };
+  const up=ev=>{ removeEventListener("mousemove",mv); removeEventListener("mouseup",up); $("#wire")?.setAttribute("d","");
+    const t=ev.target.closest?.(".nd"); if(!t || t.dataset.id===n.id) return; const to=t.dataset.id;
+    if(WF.nodes.find(x=>x.id===to).type==="trigger"){ toast("Nothing can point into the Trigger"); return; }
+    if(!WF.edges.some(x=>x.from===n.id&&x.to===to)){ WF.edges.push({from:n.id,to}); dirty=true; drawWF(); } };
+  addEventListener("mousemove",mv); addEventListener("mouseup",up); }
+$("#cv").addEventListener("click",e=>{ if(["cv","cvin","edges"].includes(e.target.id)){ selNode=selEdge=null; drawWF(); } });
+addEventListener("keydown",e=>{ if(view!=="canvas"||/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
+  if(e.key==="Delete"||e.key==="Backspace"){ if(selEdge!==null){ WF.edges.splice(selEdge,1); selEdge=null; dirty=true; drawWF(); } else if(selNode) delNode(selNode); } });
+function delNode(id){ const n=WF.nodes.find(x=>x.id===id); if(n?.type==="trigger"){ toast("Every workflow needs its Trigger"); return; }
+  WF.nodes=WF.nodes.filter(x=>x.id!==id); WF.edges=WF.edges.filter(e=>e.from!==id&&e.to!==id); selNode=null; dirty=true; drawWF(); }
+const ALL_TOOLS=["list_folder","find_files","copy_files","move_files","make_folder","rename_file","read_excel","write_excel","append_excel_rows","read_text","calculator","current_time","list_files","read_file","write_file","web_search","web_fetch","delegate","run_command"],
+      PREAPPROVE=["copy_files","move_files","make_folder","rename_file","write_excel","append_excel_rows","write_file","web_fetch","run_command"];
+const field=(label,html)=>`<label>${label}${html}</label>`;
+async function showHistory(){
+  const I=$("#insp"); if(!WF?.id){ toast("Save the workflow first — then every save is kept as a version"); return; }
+  const vs=await api(`/api/workflows/${encodeURIComponent(WF.id)}/versions`);
+  I.innerHTML=`<div class="sec" style="font-size:15px">🕘 Saved versions</div><p class="note">Every save keeps the previous version. Compare it with what you have now, or bring it back (restoring is itself saved, so nothing is lost).</p>
+    <div class="ver"><b>Now</b> · ${esc(WF.saved_at||"unsaved")}${WF.save_note?` · ${esc(WF.save_note)}`:""}<br><span class="note">${WF.nodes.length} steps · ${WF.edges.length} arrows</span></div>
+    ${vs.map(v=>`<div class="ver"><b>${esc(v.saved_at)}</b>${v.note?` · ${esc(v.note)}`:""}<br><span class="note">${v.nodes} steps · ${v.edges} arrows</span>
+      <div class="row"><button class="btn2" data-cmp="${esc(v.version)}">Compare with now</button><button class="btn2" data-res="${esc(v.version)}">Restore</button></div></div>`).join("")||`<p class="note">No older versions yet — change something and Save.</p>`}`;
+  I.querySelectorAll("[data-cmp]").forEach(b=>b.onclick=()=>startCompare(b.dataset.cmp));
+  I.querySelectorAll("[data-res]").forEach(b=>b.onclick=()=>restoreVersion(b.dataset.res));
+}
+async function startCompare(v){
+  if(dirty && !confirm("You have unsaved changes. Compare with the last SAVED state anyway?")) return;
+  const r=await api("/api/workflows/compare",{id:WF.id,version:v});
+  WF=r.current; dirty=false; CMP={version:v,diff:r.diff,old:r.old}; selNode=selEdge=null;
+  $("#cmpbar").style.display="flex"; const d=r.diff;
+  $("#cmpwhat").textContent=`version ${v.slice(0,15)} → now: ${d.added.length} new, ${d.changed.filter(c=>!c.moved_only).length} changed, ${d.removed.length} removed step(s), ${d.edges_added.length+d.edges_removed.length} arrow change(s)`;
+  drawWF();
+  $("#insp").innerHTML=`<div class="sec" style="font-size:15px">What changed</div>`+
+    (d.added.map(i=>`<div class="chg" style="border-color:var(--ok)">＋ <b>${esc(i)}</b> added</div>`).join("")+
+     d.removed_nodes.map(n=>`<div class="chg" style="border-color:var(--bad)">− <b>${esc(n.title||n.id)}</b> removed</div>`).join("")+
+     d.changed.filter(c=>!c.moved_only).map(c=>`<div class="chg" style="border-color:var(--warn)">✎ <b>${esc(c.id)}</b>${c.fields.map(f=>`<br><span class="note">${esc(f)}:</span> <s>${esc(JSON.stringify(c.before[f])).slice(0,120)}</s> → ${esc(JSON.stringify(c.after[f])).slice(0,120)}`).join("")}</div>`).join("")+
+     d.edges_added.map(e=>`<div class="chg" style="border-color:var(--ok)">＋ arrow ${esc(e[0])} → ${esc(e[1])}${e[2]?" ("+esc(e[2])+")":""}</div>`).join("")+
+     d.edges_removed.map(e=>`<div class="chg" style="border-color:var(--bad)">− arrow ${esc(e[0])} → ${esc(e[1])}</div>`).join(""))
+    || `<p class="note">No differences in steps or arrows (only positions moved).</p>`;
+}
+function endCompare(){ CMP=null; $("#cmpbar").style.display="none"; drawWF(); }
+async function restoreVersion(v){
+  if(!confirm("Bring back this version? Your current version is kept in History, so you can switch back.")) return;
+  WF=await api("/api/workflows/restore",{id:WF.id,version:v}); dirty=false; CMP=null; $("#cmpbar").style.display="none";
+  await loadCanvas(); toast("Restored — the version you had is saved in History");
+}
+function inspector(){
+  const I=$("#insp");
+  if(CMP) return;
+  if(selEdge!==null && WF.edges[selEdge]){ const e=WF.edges[selEdge], src=WF.nodes.find(n=>n.id===e.from);
+    const labels=src?.type==="decide"?Object.keys(src.config.options||{}):src?.type==="condition"?["yes","no"]:[];
+    I.innerHTML=`<div class="sec" style="font-size:15px">Arrow</div><p class="note">${esc(e.from)} → ${esc(e.to)}</p>
+      ${labels.length?field("Follow this arrow when the step answers",`<select id="ewhen"><option value="">${src.type==="condition"?"yes (default)":"always"}</option>${labels.map(l=>`<option ${e.when===l?"selected":""}>${esc(l)}</option>`).join("")}</select>`):`<p class="note">The previous step's text flows along this arrow as {input}.</p>`}
+      <button class="btn2" id="edel">Delete arrow</button>`;
+    if($("#ewhen")) $("#ewhen").onchange=ev=>{ e.when=ev.target.value||undefined; dirty=true; drawEdges(); };
+    $("#edel").onclick=()=>{ WF.edges.splice(selEdge,1); selEdge=null; dirty=true; drawWF(); }; return; }
+  const n=WF.nodes.find(x=>x.id===selNode);
+  if(!n){ I.innerHTML=`<div class="sec" style="font-size:15px">How the Canvas works</div>
+    <div class="tipbox">Drag a step by its header. Drag from the dot on its right edge onto another step to connect. Click a step to edit it, or an arrow to label or delete it. Text flows along arrows as {input}.</div>
+    <p class="note">Capture: finish a task in Agent mode, then press <b>◇ Capture as workflow</b> under the answer — it lands here ready to repeat or schedule.</p>
+    <p class="note">Branching: a <b>Decide (System 1)</b> step classifies the previous output instantly; only the matching arrow continues.</p>
+    <p class="note">Automatic: give the Trigger a folder, time or interval, Save, then tick <b>Automatic</b>.</p>`; return; }
+  const c=n.config=n.config||{}, t=n.type;
+  const sel=(k,opts)=>`<select data-c="${k}">${opts.map(o=>`<option ${c[k]===o?"selected":""}>${o}</option>`).join("")}</select>`;
+  let h=`<div class="sec" style="font-size:15px">${ICON[t][0]} ${esc(NT[t].label)}</div><div class="tipbox">💡 ${esc(TIPS[t])}</div>`+field("Step name",`<input type="text" data-k="title" value="${esc(n.title||"")}">`);
+  if(t==="trigger"){ h+=field("Starts",sel("mode",["manual","watch","daily","every"]));
+    if(c.mode==="watch") h+=field("Folder inside workspace",`<input type="text" data-c="watch" value="${esc(c.watch||"inbox/new")}">`)+field("Files (comma separated)",`<input type="text" data-c="pattern" value="${esc(c.pattern||"*")}">`);
+    if(c.mode==="daily") h+=field("Time (24h)",`<input type="text" data-c="daily" value="${esc(c.daily||"09:00")}">`);
+    if(c.mode==="every") h+=field("Every N minutes",`<input type="text" data-c="every_minutes" value="${esc(c.every_minutes||60)}">`); }
+  if(t==="screen") h+=field("Question",`<textarea data-c="question">${esc(c.question||"")}</textarea>`)+`<label class="cb"><input type="checkbox" data-c="keep" ${c.keep?"checked":""}>Keep screenshots</label><label class="cb"><input type="checkbox" data-c="allow_unattended" ${c.allow_unattended?"checked":""}>Allowed in automatic runs</label>`;
+  if(t==="vision") h+=field("Model job",sel("task",["image","documents","screen"]))+field("Prompt",`<textarea data-c="prompt">${esc(c.prompt||"")}</textarea>`);
+  if(t==="video") h+=field("Question",`<textarea data-c="question">${esc(c.question||"")}</textarea>`);
+  if(t==="condition") h+=field("Text contains",`<input type="text" data-c="contains" value="${esc(c.contains||"")}">`)+`<label class="cb"><input type="checkbox" data-c="negate" ${c.negate?"checked":""}>Fire when it does NOT contain it</label>`;
+  if(t==="llm") h+=field("Model job",sel("job",["chat","agent","documents","image"]))+field("Prompt",`<textarea data-c="prompt">${esc(c.prompt||"")}</textarea>`);
+  if(t==="decide") h+=field("Question (helps Laya / Kev decide)",`<input type="text" data-c="question" value="${esc(c.question||"")}" placeholder="e.g. Does this invoice need attention?">`)+field("Labels — one per line, “label: example; example”",`<textarea id="dopts" style="min-height:110px">${esc(Object.entries(c.options||{}).map(([k,v])=>k+": "+v.join("; ")).join("\n"))}</textarea>`);
+  if(t==="agent") h+=field("Task for the agent",`<textarea data-c="prompt">${esc(c.prompt||"")}</textarea>`)+
+    `<label>Tools it may use<div class="tools">${ALL_TOOLS.map(x=>`<label><input type="checkbox" data-tool="${x}" ${(c.tools||[]).includes(x)?"checked":""}>${x}</label>`).join("")}</div></label>`+
+    `<label>Pre-approved in automatic runs<div class="tools">${PREAPPROVE.map(x=>`<label><input type="checkbox" data-allow="${x}" ${(c.allow||[]).includes(x)?"checked":""}>${x}</label>`).join("")}</div></label>`;
+  if(t==="crew") h+=field("Crew",`<select data-c="crew">${CREWS.map(x=>`<option ${c.crew===x?"selected":""}>${esc(x)}</option>`).join("")}</select>`)+field("Inputs (JSON)",`<textarea id="cinputs">${esc(JSON.stringify(c.inputs||{},null,1))}</textarea>`);
+  if(t==="note") h+=field("Save to (inside workspace)",`<input type="text" data-c="save_to" value="${esc(c.save_to||"")}">`)+field("Mode",sel("mode",["append","overwrite"]))+field("Template",`<textarea data-c="template">${esc(c.template||"")}</textarea>`);
+  if(t==="tool") h+=field("Tool",sel("tool",ALL_TOOLS))+field("Arguments (JSON)",`<textarea id="targs">${esc(JSON.stringify(c.args||{},null,1))}</textarea>`);
+  if(t!=="trigger") h+=`<button class="btn2" id="ndel">Delete step</button>`;
+  I.innerHTML=h;
+  I.querySelector("[data-k=title]").oninput=e=>{ n.title=e.target.value; dirty=true; refreshNode(n); };
+  I.querySelectorAll("[data-c]").forEach(el=>{ const evn=el.type==="checkbox"||el.tagName==="SELECT"?"onchange":"oninput";
+    el[evn]=()=>{ c[el.dataset.c]=el.type==="checkbox"?el.checked:el.value; dirty=true; refreshNode(n); if(el.dataset.c==="mode") inspector(); }; });
+  I.querySelectorAll("[data-tool]").forEach(el=>el.onchange=()=>{ const s=new Set(c.tools||[]); el.checked?s.add(el.dataset.tool):s.delete(el.dataset.tool); c.tools=[...s]; dirty=true; });
+  I.querySelectorAll("[data-allow]").forEach(el=>el.onchange=()=>{ const s=new Set(c.allow||[]); el.checked?s.add(el.dataset.allow):s.delete(el.dataset.allow); c.allow=[...s]; dirty=true; });
+  if($("#dopts")) $("#dopts").oninput=e=>{ const o={}; e.target.value.split("\n").forEach(l=>{ const [k,...r]=l.split(":"); if(k.trim()) o[k.trim()]=r.join(":").split(";").map(s=>s.trim()).filter(Boolean); }); c.options=o; dirty=true; refreshNode(n); };
+  if($("#targs")) $("#targs").oninput=e=>{ try{ c.args=JSON.parse(e.target.value); e.target.style.borderColor=""; dirty=true; refreshNode(n); }catch(_){ e.target.style.borderColor="var(--bad)"; } };
+  if($("#cinputs")) $("#cinputs").oninput=e=>{ try{ c.inputs=JSON.parse(e.target.value); e.target.style.borderColor=""; dirty=true; }catch(_){ e.target.style.borderColor="var(--bad)"; } };
+  if($("#ndel")) $("#ndel").onclick=()=>delNode(n.id);
+}
+function refreshNode(n){ const d=[...$$("#cvin .nd")].find(x=>x.dataset.id===n.id); if(!d) return; d.querySelector(".nt").textContent=n.title||n.type; d.querySelector(".ns").textContent=summary(n); }
+$("#wfhist").onclick=()=>{ if(CMP) endCompare(); showHistory(); };
+$("#cmpexit").onclick=()=>{ endCompare(); };
+$("#cmprestore").onclick=()=>{ if(CMP) restoreVersion(CMP.version); };
+$("#wfname").oninput=e=>{ if(WF){ WF.name=e.target.value; dirty=true; } };
+$("#wfsave").onclick=async()=>{ try{ WF=await api("/api/workflows/save",{workflow:WF}); dirty=false; toast("Saved"); await loadCanvas(); }catch(e){ toast(e.message); } };
+$("#wfdel").onclick=async()=>{ if(!WF?.id){ newWorkflow(); return; } if(!confirm(`Delete "${WF.name}"? (a backup file is kept)`)) return; await api("/api/workflows/delete",{id:WF.id}); WF=null; await loadCanvas(); };
+$("#wfen").onchange=async e=>{ if(!WF?.id||dirty){ e.target.checked=!e.target.checked; toast("Save the workflow first"); return; }
+  try{ await api("/api/workflows/toggle",{id:WF.id,enabled:e.target.checked}); WF.enabled=e.target.checked; toast(e.target.checked?"Runs automatically on its trigger":"Automatic runs off"); }catch(err){ e.target.checked=!e.target.checked; toast(err.message); } };
+$("#wfrun").onclick=async()=>{
+  if(busy||!WF) return;
+  if(dirty||!WF.id){ try{ WF=await api("/api/workflows/save",{workflow:WF}); dirty=false; drawWF(); }catch(e){ toast(e.message); return; } }
+  busy=true; $$("#cvin .nd").forEach(d=>d.classList.remove("running","done","error","skipped"));
+  const live=new Set(); $("#wfrun").disabled=true; $("#wfrun").textContent="Running…";
+  if(innerWidth<1150) $("#panel").classList.add("force"); else $("#panel").classList.remove("hide");
+  add("msg user","Run workflow: "+esc(WF.name));
+  await runStream("/api/workflows/run",{id:WF.id},ev=>{
+    const d=[...$$("#cvin .nd")].find(x=>x.dataset.id===ev.id); if(d){ d.classList.remove("running","done","error","skipped"); d.classList.add(ev.status); }
+    if(ev.status==="done") WF.edges.filter(e=>e.from===ev.id).forEach(e=>live.add(e.from+">"+e.to));
+    drawEdges(live);
+  });
+  $("#wfrun").disabled=false; $("#wfrun").textContent="▶ Run now"; endBusy(); toast("Finished — the answer is in Chat, steps in Brain");
+};
+
+/* ---------------------------------------------------------------- guide */
+async function loadGuide(){ try{ $("#guide").innerHTML=md((await api("/api/guide")).markdown); }catch(e){ $("#guide").textContent="⚠ "+e.message; } }
+function inl(t){ return esc(t).replace(/`([^`]+)`/g,"<code>$1</code>").replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>").replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>'); }
+function md(src){
+  const L=src.replace(/\r/g,"").split("\n"); let h="", i=0;
+  while(i<L.length){ const l=L[i];
+    if(l.startsWith("```")){ let c=[]; i++; while(i<L.length&&!L[i].startsWith("```")) c.push(L[i++]); i++; h+=`<pre><code>${esc(c.join("\n"))}</code></pre>`; continue; }
+    let m=l.match(/^(#{1,4})\s+(.*)/); if(m){ h+=`<h${m[1].length}>${inl(m[2])}</h${m[1].length}>`; i++; continue; }
+    if(l.trim().startsWith("|")){ let rows=[]; while(i<L.length&&L[i].trim().startsWith("|")) rows.push(L[i++]);
+      const cells=r=>r.trim().replace(/^\||\|$/g,"").split("|").map(c=>c.trim());
+      h+="<table><tr>"+cells(rows[0]).map(c=>`<th>${inl(c)}</th>`).join("")+"</tr>"+rows.slice(2).map(r=>"<tr>"+cells(r).map(c=>`<td>${inl(c)}</td>`).join("")+"</tr>").join("")+"</table>"; continue; }
+    if(/^\s*[-*] /.test(l)){ h+="<ul>"; while(i<L.length&&/^\s*[-*] /.test(L[i])) h+=`<li>${inl(L[i++].replace(/^\s*[-*] /,""))}</li>`; h+="</ul>"; continue; }
+    if(/^\d+\. /.test(l)){ h+="<ol>"; while(i<L.length&&/^\d+\. /.test(L[i])) h+=`<li>${inl(L[i++].replace(/^\d+\. /,""))}</li>`; h+="</ol>"; continue; }
+    if(l.startsWith(">")){ let q=[]; while(i<L.length&&L[i].startsWith(">")) q.push(L[i++].replace(/^>\s?/,"")); h+=`<blockquote>${inl(q.join(" "))}</blockquote>`; continue; }
+    if(!l.trim()){ i++; continue; }
+    let p=[]; while(i<L.length&&L[i].trim()&&!/^(#|```|\||\s*[-*] |\d+\. |>)/.test(L[i])) p.push(L[i++]); h+=`<p>${inl(p.join(" "))}</p>`;
+  }
+  return h;
+}
+
+/* ---------------------------------------------------------------- start */
+welcome(); status(); loadRecent(); loadModels();
+api("/api/hint/types").then(t=>TYPES=t).catch(()=>{});
+setInterval(status,30000);
+addEventListener("focus",status);
+</script>
+</body>
+</html>

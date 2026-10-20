@@ -1,0 +1,76 @@
+{
+  "id": "daily-brief",
+  "name": "Daily brief",
+  "description": "Every morning at 09:00, reads yesterday's automation log and writes a short plan for the day.",
+  "enabled": false,
+  "allow": [
+    "write_file"
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "type": "trigger",
+      "x": 40,
+      "y": 140,
+      "config": {
+        "mode": "daily",
+        "time": "09:00"
+      }
+    },
+    {
+      "id": "read",
+      "type": "tool",
+      "x": 270,
+      "y": 140,
+      "config": {
+        "tool": "read_file",
+        "args": "{\"path\": \"notes/automation_log.md\"}"
+      }
+    },
+    {
+      "id": "plan",
+      "type": "llm",
+      "x": 500,
+      "y": 140,
+      "config": {
+        "job": "chat",
+        "prompt": "From this activity log, write a 5-bullet plan for today ({date}). Mention anything that failed.\n{input}"
+      }
+    },
+    {
+      "id": "save",
+      "type": "save",
+      "x": 730,
+      "y": 140,
+      "config": {
+        "path": "notes/daily_brief.md",
+        "mode": "overwrite"
+      }
+    },
+    {
+      "id": "out",
+      "type": "output",
+      "x": 960,
+      "y": 140,
+      "config": {}
+    }
+  ],
+  "edges": [
+    {
+      "from": "start",
+      "to": "read"
+    },
+    {
+      "from": "read",
+      "to": "plan"
+    },
+    {
+      "from": "plan",
+      "to": "save"
+    },
+    {
+      "from": "save",
+      "to": "out"
+    }
+  ]
+}

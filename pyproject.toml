@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nestcrew"
+version = "0.1.0"
+description = "Offline-first AI agent crews with a small local vision model, plus optional Claude/Gemini/Grok APIs"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+  "httpx>=0.27",
+  "pyyaml>=6",
+  "fastapi>=0.110",
+  "uvicorn>=0.29",
+  "python-dotenv>=1.0",
+  "python-multipart>=0.0.9",
+  "openpyxl>=3.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+media = ["mss>=9", "Pillow>=10", "opencv-python-headless>=4.9"]
+
+[project.scripts]
+nestcrew = "nestcrew.cli:main"
+
+[tool.setuptools]
+packages = ["nestcrew"]
+
+[tool.setuptools.package-data]
+nestcrew = ["static/*"]

@@ -1,0 +1,63 @@
+{
+  "id": "screenshot-notes",
+  "name": "Screenshot → notes",
+  "description": "Every screenshot saved into workspace/inbox/screenshots is read by the tiny screen model and summarised into notes/screenshots.md.",
+  "enabled": false,
+  "allow": [
+    "write_file"
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "type": "trigger",
+      "x": 40,
+      "y": 140,
+      "config": {
+        "mode": "watch",
+        "folder": "inbox/screenshots",
+        "pattern": "*.png,*.jpg,*.jpeg"
+      }
+    },
+    {
+      "id": "look",
+      "type": "vision",
+      "x": 270,
+      "y": 140,
+      "config": {
+        "job": "screen",
+        "prompt": "What app or page is this? List key info and any errors in 3 bullets."
+      }
+    },
+    {
+      "id": "save",
+      "type": "save",
+      "x": 500,
+      "y": 140,
+      "config": {
+        "path": "notes/screenshots.md",
+        "mode": "append"
+      }
+    },
+    {
+      "id": "out",
+      "type": "output",
+      "x": 730,
+      "y": 140,
+      "config": {}
+    }
+  ],
+  "edges": [
+    {
+      "from": "start",
+      "to": "look"
+    },
+    {
+      "from": "look",
+      "to": "save"
+    },
+    {
+      "from": "save",
+      "to": "out"
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "id": "invoice-check",
+  "name": "Invoice check",
+  "description": "Reads invoice photos with the document model, saves the data, and flags problems (missing tax, totals that don't add up) to a separate file.",
+  "enabled": false,
+  "allow": [
+    "write_file"
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "type": "trigger",
+      "x": 40,
+      "y": 180,
+      "config": {
+        "mode": "watch",
+        "folder": "inbox/invoices",
+        "pattern": "*.png,*.jpg,*.jpeg"
+      }
+    },
+    {
+      "id": "read",
+      "type": "vision",
+      "x": 260,
+      "y": 180,
+      "config": {
+        "job": "documents",
+        "prompt": "Extract as JSON: vendor, invoice_number, date, subtotal, tax, total, currency."
+      }
+    },
+    {
+      "id": "keep",
+      "type": "save",
+      "x": 490,
+      "y": 60,
+      "config": {
+        "path": "notes/invoices.md",
+        "mode": "append"
+      }
+    },
+    {
+      "id": "check",
+      "type": "llm",
+      "x": 490,
+      "y": 290,
+      "config": {
+        "job": "chat",
+        "prompt": "Check this invoice data. If tax is missing or subtotal + tax != total, answer 'PROBLEM: <reason>'. Otherwise answer 'OK'.\n{input}"
+      }
+    },
+    {
+      "id": "bad",
+      "type": "condition",
+      "x": 720,
+      "y": 290,
+      "config": {
+        "contains": "PROBLEM",
+        "negate": "false"
+      }
+    },
+    {
+      "id": "flag",
+      "type": "save",
+      "x": 950,
+      "y": 290,
+      "config": {
+        "path": "notes/invoice_problems.md",
+        "mode": "append"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "start",
+      "to": "read"
+    },
+    {
+      "from": "read",
+      "to": "keep"
+    },
+    {
+      "from": "read",
+      "to": "check"
+    },
+    {
+      "from": "check",
+      "to": "bad"
+    },
+    {
+      "from": "bad",
+      "to": "flag"
+    }
+  ]
+}
