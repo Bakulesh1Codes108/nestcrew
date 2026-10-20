@@ -52,7 +52,8 @@ class Agent:
         if names & {"list_folder", "copy_files", "move_files", "read_excel"}:
             head += ("\nFolders you can use: Desktop, Documents, Downloads, Pictures, Videos, Music and workspace. "
                      "Write paths like Desktop/BIRAC or Documents/report.xlsx. Look first (list_folder) "
-                     "before changing anything. Copy/move whole folders with pattern \"*\".")
+                     "before changing anything. Copy/move whole folders with pattern \"*\". "
+                     "If you don't know where a folder is, search for it with find_folder.")
         if "delegate" in names:
             head += ("\nFor a big job you may delegate parts to a specialist (file_clerk, excel_analyst, "
                      "researcher, writer); for a simple step, just use the tool yourself.")

@@ -213,3 +213,45 @@ def test_file_commands_always_route_to_an_agent(task, monkeypatch):
     monkeypatch.setattr(hints, "classify", lambda t: (_ for _ in ()).throw(AssertionError("model used")))
     h = hints.hint(task)
     assert h["type"] == "files" and h["confidence"] >= 0.9
+
+
+# ------------------------------------------------ folders not at the top level --
+def test_folder_inside_subfolders_is_found(pc):
+    deep = pc / "Documents" / "Projects" / "2026" / "Grants"
+    deep.mkdir(parents=True)
+    (deep / "a.pdf").write_text("a")
+    assert rpa.locate("Grants") == "Documents/Projects/2026/Grants"
+    asked = []
+    out = Agent().run(FakeModel([]), "copy all files from Grants to Grants backup",
+                      gate=Gate(ask_fn=lambda r: asked.append(r) or "once"))
+    assert "Copied 1 file(s)" in out and names(pc / "Documents/Projects/2026/Grants backup") == ["a.pdf"]
+    assert asked and "Documents/Projects/2026/Grants" in asked[0]["preview"]
+
+
+def test_same_name_in_two_places_asks_which_one(pc):
+    (pc / "Documents" / "Old" / "BIRAC").mkdir(parents=True)
+    (pc / "Desktop" / "Reports").mkdir()
+    (pc / "Documents" / "Reports").mkdir()
+    asked = []
+    out = Agent().run(FakeModel([]), "copy all files from Reports to Reports2",
+                      gate=Gate(ask_fn=lambda r: asked.append(r) or "once"))
+    assert out.startswith("I stopped") and "2 places" in out and "Tell me which one" in out and not asked
+    # a top-level folder wins over deeper ones with the same name - no question needed
+    assert rpa.locate("BIRAC") == "Desktop/BIRAC"
+    (pc / "Downloads" / "x" / "Deep").mkdir(parents=True)
+    (pc / "Documents" / "Deep").mkdir()
+    assert rpa.locate("Deep") == "Documents/Deep"
+
+
+def test_find_folder_tool_and_permission(pc):
+    (pc / "Desktop" / "Work" / "Invoices").mkdir(parents=True)
+    from nestcrew.safety import Gate as G
+    ok, _ = G().check("x", "find_folder", {"name": "Invoices"})          # reading needs no approval
+    assert ok and "Desktop/Work/Invoices" in rpa.find_folder("Invoices")
+    assert "No folder" in rpa.find_folder("Nope123")
+
+
+def test_hidden_and_private_folders_are_not_searched(pc):
+    (pc / "Documents" / ".secret" / "Keys").mkdir(parents=True)
+    (pc / "Documents" / "AppData" / "Keys").mkdir(parents=True)
+    assert rpa.search_folders("Keys") == []

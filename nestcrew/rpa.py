@@ -40,7 +40,7 @@ BLOCKED_PARTS = {".ssh", ".gnupg", ".aws", ".azure", "appdata", ".env", ".git", 
 MAX_FILES = 500
 CHANGE_TOOLS = {"make_folder", "copy_files", "move_files", "rename_file", "write_excel",
                 "append_excel_rows", "undo_last_move"}
-READ_TOOLS = {"list_folder", "find_files", "file_info", "read_text", "read_excel"}
+READ_TOOLS = {"find_folder", "list_folder", "find_files", "file_info", "read_text", "read_excel"}
 
 
 # ------------------------------------------------------------------ paths ----
@@ -111,17 +111,66 @@ def resolve_path(text: str) -> Path:
     return p
 
 
-def locate(name: str) -> str | None:
-    """Find a bare folder/file name in the user's folders: 'BIRAC' -> 'Desktop/BIRAC'."""
-    first = str(name).replace("\\", "/").strip("/").split("/")[0]
-    if not first or first.lower() in ALIASES or first.lower() == "workspace" or \
-            ".." in str(name).replace("\\", "/").split("/") or first.startswith(("~", ".")) or ":" in first:
-        return None
+def _search_roots() -> list[str]:
     cfg = load_config().get("rpa", {}) or {}
-    for alias in [a for a in ALIASES if a in [str(f).lower() for f in (cfg.get("folders") or ALIASES)]]:
-        if (_known(alias) / first).exists():
-            return f"{alias.capitalize()}/{name}"
+    return [a for a in ALIASES if a in [str(f).lower() for f in (cfg.get("folders") or ALIASES)]]
+
+
+def search_folders(name: str, max_depth: int = 4, limit: int = 20) -> list[str]:
+    """Look for a folder by name inside Desktop, Documents, Downloads... (subfolders too)."""
+    want = name.strip().lower()
+    hits, seen = [], 0
+    for alias in _search_roots():
+        base = _known(alias)
+        if not base.is_dir():
+            continue
+        stack = [(base, 0)]
+        while stack and len(hits) < limit and seen < 20000:
+            folder, depth = stack.pop()
+            try:
+                entries = sorted(os.scandir(folder), key=lambda e: e.name.lower())
+            except OSError:
+                continue
+            for e in entries:
+                seen += 1
+                if not e.is_dir(follow_symlinks=False) or e.name.startswith(".") or \
+                        e.name.lower() in BLOCKED_PARTS:
+                    continue
+                if e.name.lower() == want:
+                    hits.append(show(Path(e.path)))
+                if depth + 1 < max_depth:
+                    stack.append((Path(e.path), depth + 1))
+    return hits
+
+
+def locate(name: str) -> str | None:
+    """Find a bare folder/file name in the user's folders: 'BIRAC' -> 'Desktop/BIRAC'.
+    Looks at the top of Desktop, Documents... first, then searches their subfolders.
+    Raises ValueError when the name is in several places (you're asked which one)."""
+    clean = str(name).replace("\\", "/").strip("/")
+    first, _, rest = clean.partition("/")
+    if not first or first.lower() in ALIASES or first.lower() == "workspace" or \
+            ".." in clean.split("/") or first.startswith(("~", ".")) or ":" in first:
+        return None
+    top = [f"{a.capitalize()}/{first}" for a in _search_roots() if (_known(a) / first).exists()]
+    hits = top or search_folders(first)                # top of Desktop/Documents... wins over deeper
+    if rest:
+        hits = [h for h in hits if (resolve_path(h) / rest).exists()] or hits
+    if len(hits) == 1:
+        return hits[0] + (f"/{rest}" if rest else "")
+    if len(hits) > 1:
+        raise ValueError(f"I found '{first}' in {len(hits)} places: " + "; ".join(hits[:6]) +
+                         f". Tell me which one, e.g. \"{hits[0]}\".")
     return None
+
+
+@tool("find_folder", "Search Desktop, Documents, Downloads... (and their subfolders) for a folder by name.",
+      '{"name": "BIRAC"}')
+def find_folder(name: str) -> str:
+    hits = search_folders(name)
+    if not hits:
+        return f"No folder named '{name}' found in {', '.join(a.capitalize() for a in _search_roots())}."
+    return f"Found {len(hits)} folder(s) named '{name}':\n" + "\n".join(hits)
 
 
 def show(p: Path) -> str:
@@ -413,7 +462,7 @@ def preview(tool_name: str, args: dict) -> str:
 # still approve every risky step), and cannot delegate further.
 SPECIALISTS = {
     "file_clerk": {"role": "File clerk", "goal": "Find, copy, move, rename and organise files and folders exactly as asked.",
-                   "tools": ["list_folder", "find_files", "file_info", "make_folder", "copy_files", "move_files",
+                   "tools": ["find_folder", "list_folder", "find_files", "file_info", "make_folder", "copy_files", "move_files",
                              "rename_file", "undo_last_move"]},
     "excel_analyst": {"role": "Excel analyst", "goal": "Read spreadsheets, calculate totals, and write or append rows.",
                       "tools": ["list_folder", "find_files", "read_excel", "write_excel", "append_excel_rows",
@@ -504,11 +553,18 @@ def quick_plan(task: str) -> list[dict] | None:
         where = m.group("where") or (loc.group(1) if loc else None)
         src, dst = _clean_path(m.group("src"), where), _clean_path(m.group("dst"), where)
         if not where:                  # "copy BIRAC to BIRAC2": find BIRAC, put BIRAC2 next to it
-            found = locate(src)
+            try:
+                found = locate(src)
+            except ValueError:
+                found = None                     # several matches: the check before asking explains
             if found:
-                root = found.split("/")[0]
+                root = found.rsplit("/", 1)[0] if "/" in found else found   # new folders go next to it
                 src = found
-                dst = locate(dst) or (dst if dst.split("/")[0].lower() in _ROOT_WORDS else f"{root}/{dst}")
+                try:
+                    dst_found = locate(dst)
+                except ValueError:
+                    dst_found = None
+                dst = dst_found or (dst if dst.split("/")[0].lower() in _ROOT_WORDS else f"{root}/{dst}")
         if not src or not dst or src == dst:
             return None
         tool_name = "move_files" if m.group("verb").lower() == "move" else "copy_files"

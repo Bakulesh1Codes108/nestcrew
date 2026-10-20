@@ -54,6 +54,7 @@ permissions:
   run_command: ask
   # RPA (files, folders, Excel): looking is automatic, every change asks you
   list_folder: allow
+  find_folder: allow
   find_files: allow
   read_excel: allow
   copy_files: ask

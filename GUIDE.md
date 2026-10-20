@@ -147,6 +147,23 @@ Rules that keep your files safe:
 - Moves and renames can be undone: ask "undo the last move".
 - Excel files are backed up to `workspace/.backups` before they change.
 
+### Plain file commands run exactly
+
+Commands like these are understood without the model guessing, and still show you an approval card:
+
+| You type | What happens |
+|---|---|
+| `copy all files from BIRAC to BIRAC2` | finds BIRAC (Desktop first, then inside your folders), copies into BIRAC2 next to it |
+| `move the pdfs from Downloads to Documents/Invoices` | moves only `*.pdf`; undo with "undo last move" |
+| `copy everything from "NestCrew test/BIRAC" on my Desktop into a new folder "BIRAC copy"` | quotes and "on my Desktop" are fine |
+| `create a folder called Reports 2026 on my desktop` | makes the folder |
+
+If a name exists in two places (say Desktop/Reports and Documents/Reports), NestCrew asks which one instead of guessing.
+For anything else (summarise, fill an Excel, sort by date) the agent plans with the model and can search with **find_folder**.
+
+**Updates:** when NestCrew's files change, a bar says *NestCrew was updated* — press **Restart now**.
+(Closing only the app window leaves NestCrew running in its black window; close that window to quit fully.)
+
 ### Specialist sub-agents
 
 For bigger jobs the agent can **delegate** parts to a specialist: **file clerk** (files and folders), **Excel analyst** (sheets and totals), **researcher** (web when online, files otherwise), **writer** (notes and reports). You see "Agent handed a job to File clerk" in the chat and Progress panel, and you still approve every risky step the specialist takes. Specialists can't delegate further.
