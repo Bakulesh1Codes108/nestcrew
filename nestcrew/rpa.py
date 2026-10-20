@@ -266,8 +266,11 @@ def _transfer(source: str, destination: str, pattern: str, move: bool) -> str:
     if not files:
         return f"No files matching '{pattern or '*'}' in {show(src)}"
     dst.mkdir(parents=True, exist_ok=True)
-    done, log = [], []
+    done, log, same = [], [], []
     for f in files:
+        if not move and _same_file(f, dst / f.name):      # already there, identical: don't make a (2)
+            same.append(f.name)
+            continue
         target = _free_name(dst, f.name)
         (shutil.move if move else shutil.copy2)(str(f), str(target))
         done.append(f"{f.name} -> {show(target)}")
@@ -275,8 +278,37 @@ def _transfer(source: str, destination: str, pattern: str, move: bool) -> str:
     if move:
         _save_undo(log)
     verb = "Moved" if move else "Copied"
-    return f"{verb} {len(done)} file(s) from {show(src)} to {show(dst)}:\n" + "\n".join(done[:50]) + \
-        (f"\n... and {len(done) - 50} more" if len(done) > 50 else "")
+    out = f"{verb} {len(done)} file(s) from {show(src)} to {show(dst)}"
+    if same:
+        out += f" ({len(same)} already there with the same content - skipped: {', '.join(same[:10])})"
+    return out + ":\n" + "\n".join(done[:50]) + (f"\n... and {len(done) - 50} more" if len(done) > 50 else "")
+
+
+def _same_file(a: Path, b: Path) -> bool:
+    try:
+        if not b.is_file() or a.stat().st_size != b.stat().st_size:
+            return False
+        import filecmp
+        return filecmp.cmp(a, b, shallow=False)
+    except OSError:
+        return False
+
+
+def similar_existing(p: Path) -> Path | None:
+    """For a folder that doesn't exist yet: an existing sibling with nearly the same name."""
+    if p.exists() or not p.parent.is_dir():
+        return None
+    import difflib
+    want = re.sub(r"[\s_-]+(folder|directory|dir)$", "", p.name.lower()).strip()
+    try:
+        sibs = [e for e in p.parent.iterdir() if e.is_dir()]
+    except OSError:
+        return None
+    for e in sibs:
+        if e.name.lower() == want:
+            return e
+    best = difflib.get_close_matches(p.name.lower(), [e.name.lower() for e in sibs], n=1, cutoff=0.85)
+    return next((e for e in sibs if best and e.name.lower() == best[0]), None)
 
 
 @tool("copy_files", "Copy files from a folder (or one file) into another folder. pattern like *.pdf (asks you first).",
@@ -435,7 +467,16 @@ def preview(tool_name: str, args: dict) -> str:
             files = _matches(src, args.get("pattern") or "*")
             verb = "MOVE" if tool_name == "move_files" else "COPY"
             lines = "\n".join(f"  • {f.name}" for f in files[:15]) + (f"\n  … and {len(files) - 15} more" if len(files) > 15 else "")
-            extra = "" if dst.exists() else f"\n(The folder {show(dst)} will be created.)"
+            extra = ""
+            if not dst.exists():
+                near = similar_existing(dst)
+                extra = (f"\n⚠ NEW folder {show(dst)} will be created - did you mean the existing "
+                         f"{show(near)}? Deny and say so if yes." if near else
+                         f"\n(The folder {show(dst)} will be created.)")
+            elif verb == "COPY":
+                dup = [f for f in files if _same_file(f, dst / f.name)]
+                if dup:
+                    extra = f"\n({len(dup)} of them are already there with the same content - they'll be skipped.)"
             undo = "\nYou can undo this move afterwards." if verb == "MOVE" else ""
             return f"{verb} {len(files)} file(s)\nfrom {show(src)}\nto   {show(dst)}{extra}\n\n{lines}\n\nNothing is overwritten - name clashes get a (2).{undo}"
         if tool_name == "make_folder":
@@ -523,7 +564,10 @@ _MKDIR = re.compile(
 
 
 def _clean_path(text: str, where: str | None) -> str:
+    quoted = text.strip()[:1] in "\"'`" and text.strip()[:1] != ""
     p = text.strip().strip("\"'`").strip().replace("\\", "/")
+    if not quoted:                     # "BIRAC2 folder", "the BIRAC2 directory" -> BIRAC2
+        p = re.sub(r"\s+(?:folder|directory|dir)$", "", p, flags=re.I)
     p = re.sub(r"^(?:the\s+|my\s+)?(?:folder\s+)?", "", p, flags=re.I).strip("\"' ")
     first = p.split("/")[0].lower()
     if first in _ROOT_WORDS:

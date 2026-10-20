@@ -146,7 +146,7 @@ class Agent:
                 result = do_tool(i, st["tool"], st["input"], "Standard file task - exact steps")
                 if result.startswith("Error") or result.startswith("No files"):
                     return finish(f"I stopped: {result.removeprefix('Error: ')}")
-            return finish(result)
+            return finish(result.split(":\n")[0] + ".")     # the step above already lists every file
 
         for step in range(1, steps + 1):
             gate.check_stop()

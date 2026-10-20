@@ -60,8 +60,12 @@ def test_unattended_cannot_move(home):
 
 def test_copy_never_overwrites(home):
     rpa.copy_files("Desktop/BIRAC", "Documents", "*.pdf")
-    rpa.copy_files("Desktop/BIRAC", "Documents", "*.pdf")
-    assert sorted(p.name for p in (home / "Documents").iterdir()) == ["a (2).pdf", "a.pdf", "b (2).pdf", "b.pdf"]
+    rpa.copy_files("Desktop/BIRAC", "Documents", "*.pdf")             # identical: skipped, no duplicates
+    assert sorted(p.name for p in (home / "Documents").iterdir()) == ["a.pdf", "b.pdf"]
+    (home / "Documents" / "a.pdf").write_text("edited by you")
+    rpa.copy_files("Desktop/BIRAC", "Documents", "*.pdf")             # different content: kept, new gets (2)
+    assert sorted(p.name for p in (home / "Documents").iterdir()) == ["a (2).pdf", "a.pdf", "b.pdf"]
+    assert (home / "Documents" / "a.pdf").read_text() == "edited by you"
 
 
 @pytest.mark.parametrize("bad", ["~/.ssh/id_rsa", "C:/Windows/System32", "/etc/passwd", "../../outside", "Desktop/../.ssh"])

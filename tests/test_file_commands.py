@@ -127,11 +127,55 @@ def test_missing_source_folder_is_reported(pc):
     assert out.startswith("I stopped") and "BIRAK" in out and not asked
 
 
-def test_copy_twice_never_overwrites(pc):
-    for _ in range(2):
-        Agent().run(FakeModel([]), "copy all files from BIRAC to BIRAC2", gate=Gate(ask_fn=lambda r: "once"))
+def test_copy_twice_skips_identical_files_and_never_overwrites(pc):
+    run = lambda: Agent().run(FakeModel([]), "copy all files from BIRAC to BIRAC2",  # noqa: E731
+                              gate=Gate(ask_fn=lambda r: "once"))
+    run()
+    out = run()                                               # same files again: nothing duplicated
+    assert names(pc / "Desktop" / "BIRAC2") == ALL3 and "3 already there" in out
+    (pc / "Desktop" / "BIRAC" / "totals.csv").write_text("changed")   # different content, same name
+    run()
     got = names(pc / "Desktop" / "BIRAC2")
-    assert "totals.csv" in got and "totals (2).csv" in got and len(got) == 6
+    assert "totals (2).csv" in got and (pc / "Desktop/BIRAC2/totals.csv").read_text() == "totals.csv"
+
+
+@pytest.mark.parametrize("task", ["copy all files from BIRAC to BIRAC2 folder",
+                                  "copy all files from the BIRAC folder to the BIRAC2 folder",
+                                  "copy all files from BIRAC to BIRAC2 directory on desktop",
+                                  "copy all files from NestCrew test/BIRAC to NestCrew test/BIRAC2 folder on desktop"])
+def test_the_word_folder_is_not_part_of_the_name(pc, task):
+    (pc / "Desktop" / "NestCrew test" / "BIRAC2").mkdir()
+    Agent().run(FakeModel([]), task, gate=Gate(ask_fn=lambda r: "once"))
+    base = pc / "Desktop" / ("NestCrew test" if "NestCrew" in task else "")
+    assert names(base / "BIRAC2") == ALL3
+    assert not [p for p in pc.rglob("*folder*")] and not [p for p in pc.rglob("*directory*")]
+
+
+def test_quoted_name_with_folder_is_kept(pc):
+    plan = rpa.quick_plan('copy all files from BIRAC to "Old folder" on desktop')
+    assert plan[1]["input"]["destination"] == "Desktop/Old folder"
+
+
+def test_card_warns_when_a_new_folder_looks_like_an_existing_one(pc):
+    seen = []
+    Agent().run(FakeModel([]), 'copy all files from BIRAC to "BIRAC 2" on desktop',
+                gate=Gate(ask_fn=lambda r: seen.append(r["preview"]) or "deny"))
+    assert "NEW folder" in seen[0] and "did you mean the existing Desktop/BIRAC2" in seen[0]
+
+
+def test_card_says_identical_files_will_be_skipped(pc):
+    Agent().run(FakeModel([]), "copy all files from BIRAC to BIRAC2", gate=Gate(ask_fn=lambda r: "once"))
+    seen = []
+    Agent().run(FakeModel([]), "copy all files from BIRAC to BIRAC2",
+                gate=Gate(ask_fn=lambda r: seen.append(r["preview"]) or "deny"))
+    assert "3 of them are already there" in seen[0]
+
+
+def test_final_answer_is_short_and_not_repeated(pc):
+    a = Agent()
+    out = a.run(FakeModel([]), "copy all files from BIRAC to BIRAC2", gate=Gate(ask_fn=lambda r: "once"))
+    assert out == "Copied 3 file(s) from Desktop/BIRAC to Desktop/BIRAC2."
+    assert "invoice_A101.txt ->" in [e for e in a.events if e["type"] == "tool"][-1]["result"]
 
 
 def test_move_then_undo_puts_everything_back(pc):
