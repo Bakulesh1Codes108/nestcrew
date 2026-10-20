@@ -205,3 +205,11 @@ def test_restart_needs_token_and_reports_update(client):
     assert client.post("/api/restart").status_code in (401, 403)
     s = client.get("/api/status", headers=H).json()
     assert s["update_ready"] is False
+
+
+@pytest.mark.parametrize("task", [c[0] for c in CASES])
+def test_file_commands_always_route_to_an_agent(task, monkeypatch):
+    from nestcrew import hints
+    monkeypatch.setattr(hints, "classify", lambda t: (_ for _ in ()).throw(AssertionError("model used")))
+    h = hints.hint(task)
+    assert h["type"] == "files" and h["confidence"] >= 0.9

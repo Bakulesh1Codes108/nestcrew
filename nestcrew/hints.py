@@ -121,7 +121,12 @@ def hint(text: str, has_image: bool = False) -> dict:
     from . import models
     if len(text.strip()) < 4:
         return {}
-    r = classify(text)
+    from .rpa import quick_plan
+    if not has_image and quick_plan(text):            # a plain file command: certain, no model needed
+        r = {"label": "files", "confidence": 0.99, "method": "rule",
+             "probs": {"files": 0.99, "excel": 0.005, "chat": 0.005}}
+    else:
+        r = classify(text)
     kind = r["label"]
     if has_image and kind in ("chat", "files"):
         kind = "image"
