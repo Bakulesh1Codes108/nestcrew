@@ -131,6 +131,14 @@ class Agent:
         plan = quick_plan(task) if not images else None
         if plan and all(st["tool"] in allowed for st in plan):
             audit(run=gate.run_id, agent=self.role, event="quick_plan", steps=[st["tool"] for st in plan])
+            from .rpa import resolve_path
+            for st in plan:                    # check the folders before asking you anything
+                for key in ("source", "destination", "path"):
+                    if key in st["input"]:
+                        try:
+                            resolve_path(st["input"][key])
+                        except ValueError as e:
+                            return finish(f"I stopped: {e}")
             result = ""
             for i, st in enumerate(plan, 1):
                 gate.check_stop()

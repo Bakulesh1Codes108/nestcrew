@@ -33,6 +33,15 @@ TOKEN = secrets.token_urlsafe(24)
 RUNS: dict[str, dict] = {}
 
 
+def _code_sig() -> tuple:
+    """Fingerprint of the app's own code: changes when NestCrew is updated on disk."""
+    files = sorted(Path(__file__).parent.glob("*.py")) + [STATIC / "index.html"]
+    return tuple((f.name, f.stat().st_size, int(f.stat().st_mtime)) for f in files if f.exists())
+
+
+START_SIG = _code_sig()
+
+
 @app.middleware("http")
 async def guard(request: Request, call_next):
     host = (request.headers.get("host") or "").split(":")[0]
@@ -110,7 +119,28 @@ def status():
         "cloud_keys": {c: bool(api_key(c)) for c in CLOUD},
         "tools": [t.name for t in available()],
         "crews": list_crews(),
+        "update_ready": _code_sig() != START_SIG,      # new code on disk -> offer Restart
     }
+
+
+@app.post("/api/restart")
+def restart():
+    """Start a fresh NestCrew (new code) and close this one. The window reconnects by itself."""
+    if RUNS:
+        raise HTTPException(409, "A task is still running - stop it or wait, then restart.")
+    import os
+    import subprocess
+    import sys
+    audit(event="restart")
+    flags = 0x00000010 if sys.platform == "win32" else 0          # CREATE_NEW_CONSOLE
+    cwd = str(Path(__file__).resolve().parent.parent)
+    code = ("import traceback\ntry:\n    from nestcrew.server import main\n    main(wait_port=True)\n"
+            "except SystemExit:\n    raise\nexcept BaseException:\n    traceback.print_exc()\n"
+            "    input('NestCrew stopped with a problem (details above). Press Enter to close.')")
+    subprocess.Popen([sys.executable, "-c", code],
+                     cwd=cwd, creationflags=flags, start_new_session=sys.platform != "win32")
+    threading.Timer(0.8, lambda: os._exit(0)).start()
+    return {"ok": True}
 
 
 def _sse(ev: dict) -> str:
@@ -801,15 +831,23 @@ def clear(session: str = "default"):
     return {"ok": True}
 
 
-def main(open_window: bool = False):
+def main(open_window: bool = False, wait_port: bool = False):
     import uvicorn
 
     cfg = load_config().get("server", {})
     host, port = "127.0.0.1", cfg.get("port", 8765)     # never listen on the network
     import socket
-    with socket.socket() as sock:                      # an older copy still running?
-        sock.settimeout(1)
-        busy = sock.connect_ex((host, port)) == 0
+
+    def port_busy() -> bool:
+        with socket.socket() as sock:                  # an older copy still running?
+            sock.settimeout(1)
+            return sock.connect_ex((host, port)) == 0
+    busy = port_busy()
+    for _ in range(30 if wait_port else 0):            # restarting: wait for the old copy to exit
+        if not busy:
+            break
+        time.sleep(0.5)
+        busy = port_busy()
     if busy:
         print(f"Port {port} is already in use - another NestCrew may still be running.\n"
               "Close it (or restart the PC) and start NestCrew again. Opening the existing one...")

@@ -296,6 +296,9 @@ table.tl{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px;whit
   </div>
 </aside>
 <div id="toast"></div>
+<div id="updbar" style="display:none;position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:55;background:var(--ink,#1f1d1a);color:#fff;border-radius:12px;padding:10px 12px 10px 16px;gap:12px;align-items:center;box-shadow:var(--shadow);font-size:14px">
+  <span>NestCrew was updated. Restart to use the new version.</span>
+  <button id="updgo" style="background:var(--accent,#c4532d);color:#fff;border:0;border-radius:8px;padding:6px 12px;cursor:pointer">Restart now</button></div>
 <div id="down" style="display:none;position:fixed;inset:0;background:rgba(20,18,16,.55);z-index:60;align-items:center;justify-content:center">
   <div style="background:var(--panel);border-radius:16px;padding:22px 24px;max-width:440px;box-shadow:var(--shadow)">
     <h3 style="margin:0 0 8px">NestCrew isn't running</h3>
@@ -349,6 +352,7 @@ async function status(){
     for(const o of $$("#provider option")){ if(s.cloud_keys[o.value]===false && !o.disabled){ o.disabled=true; o.textContent+=" (no key)"; } }
     if(!crews.length){ crews=s.crews; $("#crewsel").innerHTML=crews.map(c=>`<option value="${c.file}">${esc(c.name)}</option>`).join(""); renderCrewInputs(); }
     $("#down").style.display="none";
+    $("#updbar").style.display=s.update_ready?"flex":"none";
   }catch(e){ $("#net").textContent="NestCrew server not reachable"; $("#netdot").className="dot warn"; $("#down").style.display="flex"; return; }
   try{ const b=await api("/api/brain");
     const names={laya:"Laya",kev:"Kev",openjev:"OpenJev",cribl:"Cribl decision"};
@@ -957,6 +961,15 @@ function md(src){
 welcome(); status(); loadRecent(); loadModels();
 api("/api/hint/types").then(t=>TYPES=t).catch(()=>{});
 setInterval(status,30000);
+$("#updgo").onclick=async()=>{
+  if(busy){ toast("Wait for the running task to finish (or press Stop), then restart."); return; }
+  $("#updgo").disabled=true; $("#updgo").textContent="Restarting…";
+  try{ await api("/api/restart",{}); }catch(e){}
+  const t0=Date.now();
+  const again=async()=>{ try{ const r=await fetch("/",{cache:"no-store"}); if(r.ok){ location.reload(); return; } }catch(e){}
+    if(Date.now()-t0<60000) setTimeout(again,1500); else { $("#updgo").disabled=false; $("#updgo").textContent="Restart now"; } };
+  setTimeout(again,2500);
+};
 addEventListener("focus",status);
 </script>
 </body>

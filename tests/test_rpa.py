@@ -160,3 +160,13 @@ def test_quick_plan_stops_when_folder_is_missing(home):
     out = Agent().run(FakeModel([]), "move all files from NOPE to BIRAC2 on desktop",
                       gate=Gate(ask_fn=lambda r: "once"))
     assert out.startswith("I stopped") and not (home / "Desktop" / "BIRAC2").exists()
+
+
+def test_bare_folder_names_are_found_on_desktop(home):
+    (home / "Desktop" / "BIRAC2").mkdir()
+    assert rpa.locate("BIRAC") == "Desktop/BIRAC"
+    assert rpa.resolve_path("BIRAC") == (home / "Desktop" / "BIRAC").resolve()
+    plan = rpa.quick_plan("copy all files from BIRAC to BIRAC2")
+    assert plan[1]["input"] == {"source": "Desktop/BIRAC", "destination": "Desktop/BIRAC2", "pattern": "*"}
+    plan = rpa.quick_plan("copy all files from BIRAC to Reports new")      # new folder goes next to it
+    assert plan[1]["input"]["destination"] == "Desktop/Reports new"

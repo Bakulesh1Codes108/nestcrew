@@ -90,8 +90,12 @@ def resolve_path(text: str) -> Path:
         p = workspace() / rest
     elif os.path.isabs(raw) or (len(raw) > 1 and raw[1] == ":"):
         p = Path(raw)
-    else:
+    else:                              # a bare name like "BIRAC": workspace, else Desktop/Documents/...
         p = workspace() / raw
+        if not p.exists():
+            found = locate(raw)
+            if found:
+                p = _known(found.split("/")[0]) / raw
     p = p.resolve()
     parts = {x.lower() for x in p.parts}
     if parts & BLOCKED_PARTS:
@@ -105,6 +109,19 @@ def resolve_path(text: str) -> Path:
         raise ValueError(f"'{text}' is outside the folders NestCrew may use ({names}). "
                          "Add it under rpa.folders in config.yaml if you want to allow it.")
     return p
+
+
+def locate(name: str) -> str | None:
+    """Find a bare folder/file name in the user's folders: 'BIRAC' -> 'Desktop/BIRAC'."""
+    first = str(name).replace("\\", "/").strip("/").split("/")[0]
+    if not first or first.lower() in ALIASES or first.lower() == "workspace" or \
+            ".." in str(name).replace("\\", "/").split("/") or first.startswith(("~", ".")) or ":" in first:
+        return None
+    cfg = load_config().get("rpa", {}) or {}
+    for alias in [a for a in ALIASES if a in [str(f).lower() for f in (cfg.get("folders") or ALIASES)]]:
+        if (_known(alias) / first).exists():
+            return f"{alias.capitalize()}/{name}"
+    return None
 
 
 def show(p: Path) -> str:
@@ -478,13 +495,20 @@ def quick_plan(task: str) -> list[dict] | None:
     m = _TRANSFER.match(text)
     if m:
         kind = (m.group("kind") or "").lower().lstrip(".")
-        if kind in ("all", "every", "the", "my", "files", "file"):
+        if kind in ("all", "every", "the", "my", "files", "file", "everything", "contents", "content",
+                    "items", "item", "stuff", "things"):
             kind = ""
         pattern = m.group("kind") if (m.group("kind") or "").startswith("*.") else _KINDS.get(kind, "*")
         if kind and pattern == "*" and kind not in _KINDS:
             return None                               # an unknown word: let the model read it
         where = m.group("where") or (loc.group(1) if loc else None)
         src, dst = _clean_path(m.group("src"), where), _clean_path(m.group("dst"), where)
+        if not where:                  # "copy BIRAC to BIRAC2": find BIRAC, put BIRAC2 next to it
+            found = locate(src)
+            if found:
+                root = found.split("/")[0]
+                src = found
+                dst = locate(dst) or (dst if dst.split("/")[0].lower() in _ROOT_WORDS else f"{root}/{dst}")
         if not src or not dst or src == dst:
             return None
         tool_name = "move_files" if m.group("verb").lower() == "move" else "copy_files"
