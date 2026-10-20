@@ -299,3 +299,12 @@ def test_hidden_and_private_folders_are_not_searched(pc):
     (pc / "Documents" / ".secret" / "Keys").mkdir(parents=True)
     (pc / "Documents" / "AppData" / "Keys").mkdir(parents=True)
     assert rpa.search_folders("Keys") == []
+
+
+def test_private_folders_inside_allowed_ones_stay_refused(pc):
+    for bad in ("Desktop/.ssh", "Documents/AppData/x", "Desktop/proj/.git", "Downloads/.env"):
+        with pytest.raises(ValueError, match="protected"):
+            rpa.resolve_path(bad)
+    for bad in ("C:/Windows/System32", "/etc", "~/.ssh"):
+        with pytest.raises(ValueError):
+            rpa.resolve_path(bad)

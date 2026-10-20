@@ -97,17 +97,21 @@ def resolve_path(text: str) -> Path:
             if found:
                 p = _known(found.split("/")[0]) / raw
     p = p.resolve()
-    parts = {x.lower() for x in p.parts}
-    if parts & BLOCKED_PARTS:
-        raise ValueError(f"'{text}' is in a protected system or private folder")
     if p == ROOT.resolve() or (ROOT.resolve() in p.parents and workspace() not in [p, *p.parents]):
         raise ValueError("NestCrew's own program folder is off-limits (use the workspace)")
     roots = allowed_roots()
     np = _norm(p)
-    if not any(np == _norm(r) or np.startswith(_norm(r) + "/") for r in roots):
+    inside = [r for r in roots if np == _norm(r) or np.startswith(_norm(r) + "/")]
+    if not inside:
         names = ", ".join(r.name for r in roots)
         raise ValueError(f"'{text}' is outside the folders NestCrew may use ({names}). "
                          "Add it under rpa.folders in config.yaml if you want to allow it.")
+    # Only the part below Desktop/Documents/... is checked, so it doesn't matter where Windows
+    # keeps those folders - but Desktop/.ssh or Documents/AppData/... stay refused.
+    root = max(inside, key=lambda r: len(_norm(r)))
+    rel = np[len(_norm(root)):].strip("/")
+    if {x.lower() for x in rel.split("/") if x} & BLOCKED_PARTS:
+        raise ValueError(f"'{text}' is in a protected system or private folder")
     return p
 
 
