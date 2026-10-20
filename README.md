@@ -41,6 +41,27 @@ flowchart LR
     W --> V[(Versioned workflows)]
 ```
 
+## How a task runs (real run on a Windows laptop)
+
+![NestCrew moving files after approval](docs/screenshots/rpa-move-approved.png)
+
+```mermaid
+flowchart TD
+    U["You type: move all files from BIRAC to BIRAC2"] --> H{"System 1 router<br/>rule match or Laya / MiniLM"}
+    H -- "question" --> C["Chat with local model<br/>(Qwen3-VL 2B instruct)"]
+    H -- "file / Excel task 99%" --> Q{"Quick plan?<br/>copy · move · make folder"}
+    Q -- "yes: exact steps" --> F["Find folders<br/>Desktop → Documents → Downloads<br/>(subfolders too; asks if ambiguous)"]
+    Q -- "no: open-ended" --> L["Agent loop<br/>model plans JSON tool calls<br/>(+ specialist sub-agents)"]
+    L --> F
+    F --> P["list_folder (read: automatic)"]
+    P --> G{"Permission gate<br/>approval card lists every file"}
+    G -- "Deny / no answer" --> X["Nothing changes"]
+    G -- "Allow once / for task" --> T["copy_files / move_files<br/>no overwrite · identical skipped · undo log"]
+    T --> R["Short answer + steps in Progress panel"]
+    R --> B[("Brain: trace saved<br/>👍 → lessons · 👎 → incident")]
+    B --> W["⚙ Save as RPA bot / ◇ AI flow<br/>→ Canvas: edit · version · compare · schedule"]
+```
+
 More diagrams (request sequence, safety layers, model routing, learning loop, code map): **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ## Quick start (Windows)
