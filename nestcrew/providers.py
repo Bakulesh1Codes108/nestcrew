@@ -94,11 +94,13 @@ class OllamaProvider(Provider):
         self.max_tokens = int(cfg.get("max_tokens", 1024))
         self.max_tokens_json = int(cfg.get("max_tokens_json", 512))
         self._no_think_param = set()
+        self.thinkers: set[str] = set()     # models seen "thinking" even with think=false
+        self.last_thinking = ""
         ram = _ram_gb()
         if ram and ram < 12 and "num_ctx" not in cfg:     # low-memory laptop: smaller context
             self.options["num_ctx"] = 2048
 
-    def _body(self, messages, stream, json_mode, model=None):
+    def _body(self, messages, stream, json_mode, model=None, budget=None):
         msgs = []
         for m in messages:
             item = {"role": m["role"], "content": m.get("content", "")}
@@ -110,7 +112,7 @@ class OllamaProvider(Provider):
             "messages": msgs,
             "stream": stream,
             "options": {**self.options,
-                        "num_predict": self.max_tokens_json if json_mode else self.max_tokens},
+                        "num_predict": budget or (self.max_tokens_json if json_mode else self.max_tokens)},
             "keep_alive": self.keep_alive,
         }
         if json_mode and self.json_ok:
@@ -138,6 +140,10 @@ class OllamaProvider(Provider):
         have = self.installed_models()
         if not have:
             return self.model
+        # Some builds (e.g. qwen3-vl:2b) always "think" and ignore think=false;
+        # their "-instruct" twin answers directly, so prefer it when it's downloaded.
+        if ":" in self.model and f"{self.model}-instruct" in have:
+            return f"{self.model}-instruct"
         if self.model in have or f"{self.model}:latest" in have:
             return self.model
         if self.fallback_model and self.fallback_model in have:
@@ -145,12 +151,22 @@ class OllamaProvider(Provider):
         return self.model
 
     def chat(self, messages, json_mode=False):
-        """Streams internally so Stop can interrupt it; retries once on an empty reply."""
-        for attempt in (1, 2):
-            text = "".join(self._stream(messages, json_mode))
+        """Streams internally so Stop can interrupt it; retries once on an empty reply.
+
+        A "thinking" model that ignores think=false can use its whole budget thinking and
+        return nothing: then it gets a bigger budget, and as a last resort the answer is
+        taken from the end of its thinking."""
+        text = "".join(self._stream(messages, json_mode))
+        if text.strip():
+            return text
+        if self.last_thinking:
+            self.thinkers.add(self._pick_model())
+            budget = max(4 * (self.max_tokens_json if json_mode else self.max_tokens), 2048)
+            text = "".join(self._stream(messages, json_mode, budget))
             if text.strip():
                 return text
-        return text
+            return _answer_from_thinking(self.last_thinking, json_mode)
+        return "".join(self._stream(messages, json_mode))
 
     def stream(self, messages):
         got = False
@@ -160,10 +176,12 @@ class OllamaProvider(Provider):
         if not got:                                    # empty reply: try once more
             yield from self._stream(messages, False)
 
-    def _stream(self, messages, json_mode):
+    def _stream(self, messages, json_mode, budget=None):
         model = self._pick_model()
-        body = self._body(messages, True, json_mode, model)
+        body = self._body(messages, True, json_mode, model, budget)
         cancel = CANCEL.get()
+        self.last_thinking = ""
+        thinking = []
         for attempt in (1, 2):
             try:
                 with httpx.stream("POST", f"{self.base}/api/chat", json=body, timeout=TIMEOUT) as r:
@@ -182,7 +200,11 @@ class OllamaProvider(Provider):
                         chunk = json.loads(line)
                         if chunk.get("error"):
                             raise ProviderError(f"Ollama: {chunk['error']}")
-                        piece = chunk.get("message", {}).get("content", "")
+                        msg = chunk.get("message", {})
+                        if msg.get("thinking"):
+                            thinking.append(msg["thinking"])
+                            self.last_thinking = "".join(thinking)
+                        piece = msg.get("content", "")
                         if piece:
                             yield piece
                         if chunk.get("done"):
@@ -192,6 +214,22 @@ class OllamaProvider(Provider):
                 raise ProviderError("Ollama is not running. Start it with: ollama serve") from e
             except httpx.TimeoutException as e:
                 raise ProviderError("The model took too long to answer - try a smaller model on the Models page.") from e
+
+
+def _answer_from_thinking(thinking: str, json_mode: bool) -> str:
+    """Last resort for a model that only thought: use a JSON object it wrote, or its last lines."""
+    import re
+    text = re.sub(r"</?think>", "", thinking).strip()
+    if json_mode:
+        found = re.findall(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", text)
+        for cand in reversed(found):
+            try:
+                json.loads(cand)
+                return cand
+            except ValueError:
+                continue
+        return ""
+    return text.split("\n\n")[-1][:1500]
 
 
 # ----------------------------------------------------------------- cloud ----

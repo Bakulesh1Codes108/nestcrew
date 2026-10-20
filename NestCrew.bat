@@ -18,4 +18,12 @@ if not errorlevel 1 (
   exit /b 0
 )
 echo NestCrew is running. Keep this window open; close it to quit.
-".venv\Scripts\nestcrew.exe" app
+".venv\Scripts\nestcrew.exe" app 2> "data\last-start.log"
+if errorlevel 1 (
+  echo.
+  echo NestCrew stopped with a problem:
+  type "data\last-start.log"
+  echo.
+  echo These details are saved in data\last-start.log
+  pause
+)

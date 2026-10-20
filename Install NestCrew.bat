@@ -50,7 +50,7 @@ powershell -NoProfile -Command "try{Invoke-WebRequest -UseBasicParsing http://12
 set RAM=16
 for /f %%R in ('powershell -NoProfile -Command "[math]::Floor((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory/1GB)"') do set RAM=%%R
 set "MODEL=gemma4:e4b"
-if %RAM% LSS 16 set "MODEL=qwen3-vl:2b"
+if %RAM% LSS 16 set "MODEL=qwen3-vl:2b-instruct"
 if %RAM% LSS 8 set "MODEL=gemma3:1b"
 echo  [..] %RAM% GB RAM detected - downloading model %MODEL% ^(skipped if you already have it^)
 ollama pull %MODEL%

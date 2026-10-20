@@ -806,6 +806,16 @@ def main(open_window: bool = False):
 
     cfg = load_config().get("server", {})
     host, port = "127.0.0.1", cfg.get("port", 8765)     # never listen on the network
+    import socket
+    with socket.socket() as sock:                      # an older copy still running?
+        sock.settimeout(1)
+        busy = sock.connect_ex((host, port)) == 0
+    if busy:
+        print(f"Port {port} is already in use - another NestCrew may still be running.\n"
+              "Close it (or restart the PC) and start NestCrew again. Opening the existing one...")
+        if open_window:
+            _open_app_window(f"http://{host}:{port}")
+        raise SystemExit(3)
     print(f"NestCrew running at http://{host}:{port}  (Ctrl+C to quit)")
     if open_window:
         threading.Timer(1.5, _open_app_window, args=(f"http://{host}:{port}",)).start()

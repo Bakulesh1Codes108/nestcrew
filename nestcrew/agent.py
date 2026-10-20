@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from .config import load_config
-from .providers import Provider
+from .providers import Provider, ProviderError
 from . import memory
 from . import tools as tools_mod
 from .safety import Gate, Stopped, audit, redact, wrap_untrusted
@@ -119,11 +119,16 @@ class Agent:
             gate.check_stop()
             data = parse_json(raw)
             if data is None:  # small model ignored the format - accept its text
+                if not raw.strip():
+                    raise ProviderError("The model returned an empty reply. Try again, or pick another "
+                                        "model for Agents on the Models page (e.g. Qwen3.5 0.8B).")
                 return finish(raw)
             action = str(data.get("action", "final")).strip()
             if action == "final" or "answer" in data and action not in _tool_names():
                 return finish(str(data.get("answer") or data.get("thought") or raw))
-            args = data.get("input") or {}
+            args = data.get("input")
+            if args is None:          # small models often put the arguments next to "action"
+                args = {k: v for k, v in data.items() if k not in ("thought", "action", "answer")}
             if not isinstance(args, dict):
                 args = {}
             if action not in allowed:

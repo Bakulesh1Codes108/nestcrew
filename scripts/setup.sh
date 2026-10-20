@@ -14,7 +14,7 @@ fi
 # Pick a model size from RAM
 RAM_GB=$( (sysctl -n hw.memsize 2>/dev/null || awk '/MemTotal/{print $2*1024}' /proc/meminfo) | awk '{printf "%d", $1/1073741824}')
 if   [ "$RAM_GB" -ge 16 ]; then MODEL="gemma4:e4b"
-elif [ "$RAM_GB" -ge 8 ];  then MODEL="qwen3-vl:2b"
+elif [ "$RAM_GB" -ge 8 ];  then MODEL="qwen3-vl:2b-instruct"
 else MODEL="gemma3:1b"; echo "!! Under 8 GB RAM: using a tiny text-only model (no image support)."; fi
 echo ">> ${RAM_GB} GB RAM detected -> pulling $MODEL"
 ollama pull "$MODEL"
