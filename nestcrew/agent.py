@@ -146,7 +146,7 @@ class Agent:
                             return finish(f"I stopped: {e}")
             from .cleanup import nothing_to_do
             from .rpa import READ_TOOLS
-            result, summary, skipped, scan = "", [], [], ""
+            result, summary, skipped, scan, recycled = "", [], [], "", []
             for i, st in enumerate(plan, 1):
                 gate.check_stop()
                 skip = nothing_to_do(st["tool"], st["input"])
@@ -158,6 +158,8 @@ class Agent:
                 result = do_tool(i, st["tool"], st["input"], "Standard file task - exact steps")
                 if st["tool"] == "scan_folder":
                     scan = result.split("\n")[0]
+                if st["tool"] == "recycle_files":
+                    recycled.append((st, result))
                 if result.startswith("Error") or result.startswith("No files"):
                     done = " ".join(x for x in summary if x)
                     return finish(f"I stopped: {result.removeprefix('Error: ')}" + (f" (Done before that: {done})" if done else ""))
@@ -171,6 +173,18 @@ class Agent:
                               f"({scan})")
             if skipped and not summary:
                 return finish(nothing_to_do(skipped[0]["tool"], skipped[0]["input"]) or "Nothing to change.")
+            rec = [(st, r) for st, r in recycled]
+            if rec and len(rec) == len(summary):              # a clean-up: one line, not three
+                label = {"junk": "junk file(s)", "duplicates": "duplicate(s)", "empty_folders": "empty folder(s)"}
+                parts = []
+                for st, r in rec:
+                    n = re.match(r"Sent (\d+)", r)
+                    if n:
+                        parts.append(n.group(1) + " " + label.get(st["input"].get("what", ""), "item(s)"))
+                if parts:
+                    where = rec[0][0]["input"].get("path", "")
+                    return finish(f"Recycled {', '.join(parts[:-1]) + ' and ' + parts[-1] if len(parts) > 1 else parts[0]} "
+                                  f"from {where} - restore them from the Recycle Bin if needed.")
             return finish(" ".join(summary) or result)
 
         for step in range(1, steps + 1):

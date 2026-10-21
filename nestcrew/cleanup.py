@@ -119,17 +119,20 @@ def duplicate_groups(root: Path, recursive: bool = True) -> list[list[Path]]:
 
 
 def _empty_dirs(root: Path) -> list[Path]:
-    out = []
+    """Folders with no files anywhere inside (a folder holding only empty folders counts too).
+    Only the top-most ones are returned - recycling a folder takes its empty subfolders with it."""
+    empty: set[Path] = set()
     for d, subdirs, files in os.walk(root, topdown=False):
         p = Path(d)
         if p == root or p.name.lower() in SKIP_DIRS:
             continue
         try:
-            if not any(p.iterdir()):
-                out.append(p)
+            entries = list(p.iterdir())
         except OSError:
-            pass
-    return out
+            continue
+        if all(e.is_dir() and e in empty for e in entries):
+            empty.add(p)
+    return sorted(p for p in empty if p.parent not in empty)
 
 
 # ------------------------------------------------------------------ reading --

@@ -79,9 +79,9 @@ def test_make_folder_clean_end_to_end(pc):
     assert "RECYCLE 3 junk files" in asked[0]["preview"] and "Recycle Bin" in asked[0]["preview"]
     assert "RECYCLE 2 duplicate copies (one copy of each is kept)" in asked[1]["preview"]
     left = names(pc / "Desktop" / "BIRAC2")
-    assert left == ["clip.mp4", "notes.txt", "old", "other.mp4"]           # originals and unique files stay
-    assert len(list(BIN[0].iterdir())) == 3 + 2 + 3 - 1                  # 'old' became empty only after its copy left
-    assert "Sent 3 item(s)" in out and "Sent 2 item(s)" in out
+    assert left == ["clip.mp4", "notes.txt", "other.mp4"]                  # originals and unique files stay
+    assert len(list(BIN[0].iterdir())) == 3 + 2 + 2      # 'old' (empty once its copy left) goes with its empty subfolder
+    assert out.startswith("Recycled 3 junk file(s), 2 duplicate(s) and 2 empty folder(s) from Desktop/BIRAC2")
     assert [e["tool"] for e in a.events if e["type"] == "tool"][0] == "scan_folder"
 
 
@@ -231,3 +231,20 @@ def test_already_clean_folder_gets_one_clear_answer(pc):
     assert not asked
     assert out == "Already clean - no junk, duplicates or empty folders. (Desktop/Tidy: 2 file(s), 30 B)"
     _sh.rmtree(clean)
+
+
+def test_nested_empty_folders_go_in_one_step_and_summary_is_one_line(pc):
+    demo = pc / "Desktop" / "Demo"
+    (demo / "old" / "empty").mkdir(parents=True)
+    (demo / "more").mkdir()
+    (demo / "IMG.jpg").write_bytes(b"x" * 300)
+    (demo / "IMG (2).jpg").write_bytes(b"x" * 300)
+    (demo / "more" / "IMG_copy.jpg").write_bytes(b"x" * 300)
+    (demo / "setup.tmp").write_text("t")
+    (demo / "notes.txt").write_text("keep")
+    out, asked, _ = run("clean up Demo")
+    assert [a["tool"] for a in asked] == ["recycle_files"] * 3
+    left = sorted(str(p.relative_to(demo)).replace("\\\\", "/") for p in demo.rglob("*"))
+    assert left == ["IMG.jpg", "notes.txt"]                       # 'old' (only empty inside) and 'more' gone too
+    assert out == ("Recycled 1 junk file(s), 2 duplicate(s) and 2 empty folder(s) from Desktop/Demo - "
+                   "restore them from the Recycle Bin if needed.")
