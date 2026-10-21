@@ -97,7 +97,7 @@ def test_clean_folder_asks_nothing_when_already_clean(pc):
     tidy.mkdir()
     (tidy / "a.txt").write_text("a")
     out, asked, _ = run("clean Tidy")
-    assert asked == [] and "No junk" in out and "No duplicates" in out
+    assert asked == [] and out.startswith("Already clean - no junk, duplicates or empty folders")
 
 
 def test_find_and_delete_duplicates_only(pc):
@@ -218,3 +218,16 @@ def test_cleaner_specialist_has_the_tools():
     for t in ("scan_folder", "find_duplicates", "recycle_files", "organize_folder", "move_files"):
         assert t in spec["tools"]
     assert "Recycle Bin" in spec["goal"]
+
+
+def test_already_clean_folder_gets_one_clear_answer(pc):
+    import shutil as _sh
+    clean = pc / "Desktop" / "Tidy"
+    clean.mkdir()
+    (clean / "a.mp4").write_bytes(b"a" * 10)
+    (clean / "b.mp4").write_bytes(b"b" * 20)
+    asked = []
+    out = Agent().run(FakeModel([]), "make Tidy folder clean", gate=Gate(ask_fn=lambda r: asked.append(r) or "once"))
+    assert not asked
+    assert out == "Already clean - no junk, duplicates or empty folders. (Desktop/Tidy: 2 file(s), 30 B)"
+    _sh.rmtree(clean)

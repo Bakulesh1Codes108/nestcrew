@@ -146,22 +146,31 @@ class Agent:
                             return finish(f"I stopped: {e}")
             from .cleanup import nothing_to_do
             from .rpa import READ_TOOLS
-            result, summary = "", []
+            result, summary, skipped, scan = "", [], [], ""
             for i, st in enumerate(plan, 1):
                 gate.check_stop()
                 skip = nothing_to_do(st["tool"], st["input"])
                 if skip:                       # e.g. no duplicates: don't ask you about nothing
                     emit({"type": "tool", "agent": self.role, "step": i, "thought": "Nothing to change",
                           "tool": st["tool"], "input": st["input"], "result": skip})
-                    summary.append(skip)
+                    skipped.append(st)
                     continue
                 result = do_tool(i, st["tool"], st["input"], "Standard file task - exact steps")
+                if st["tool"] == "scan_folder":
+                    scan = result.split("\n")[0]
                 if result.startswith("Error") or result.startswith("No files"):
                     done = " ".join(x for x in summary if x)
                     return finish(f"I stopped: {result.removeprefix('Error: ')}" + (f" (Done before that: {done})" if done else ""))
                 if st["tool"] not in READ_TOOLS or len(plan) == 1:
                     summary.append(result if len(plan) == 1 and st["tool"] in READ_TOOLS
                                    else result.split(":\n")[0].rstrip(".") + ".")   # the step lists every file
+            if skipped and not summary and scan:               # a clean-up that found nothing to do
+                what = [{"junk": "junk", "duplicates": "duplicates", "empty_folders": "empty folders"}
+                        .get(st["input"].get("what", ""), "changes") for st in skipped]
+                return finish(f"Already clean - no {', '.join(what[:-1]) + ' or ' + what[-1] if len(what) > 1 else what[0]}. "
+                              f"({scan})")
+            if skipped and not summary:
+                return finish(nothing_to_do(skipped[0]["tool"], skipped[0]["input"]) or "Nothing to change.")
             return finish(" ".join(summary) or result)
 
         for step in range(1, steps + 1):
