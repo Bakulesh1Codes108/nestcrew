@@ -24,6 +24,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 media = ["mss>=9", "Pillow>=10", "opencv-python-headless>=4.9"]
+voice = ["faster-whisper>=1.0", "av>=11,<19"]                 # 🎤 offline speech-to-text (the app can also install it for you)
 
 [project.scripts]
 nestcrew = "nestcrew.cli:main"

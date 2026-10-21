@@ -13,6 +13,12 @@ House rules, everywhere:
   (D:, E:, USB, SD — never C:\Windows or C:\Program Files) can be touched. `.ssh`, `AppData`, `.git` are refused.
 - Every action is written to `data/audit.jsonl`; every task is saved in **Brain**.
 
+**Speak instead of typing:** press **🎤** in the chat bar (or **Ctrl+Shift+Space**), say the task, pause — it
+stops by itself and puts the words in the box. Spoken commands: *stop*, *send*, *clear*, *new chat*, *allow* / *deny*
+(answers an approval card), *open phone / canvas / models / brain / guide*. Speech is turned into text **on this PC**
+(Whisper — **Models → Voice commands → Enable offline voice**, one ~150 MB download); speak Hindi, Marathi or any language
+and it becomes an English command. Options there: send automatically after speaking; keep your language instead.
+
 ---
 
 ## 1. Files and folders
@@ -96,16 +102,24 @@ tools it may use unattended. **🕘 History** compares any saved version with no
 
 ## 6. Models and System 1
 
-**Models** page: one "brain" model for chat/agents (Qwen3-VL 2B instruct on an 8–16 GB laptop) and tiny "eyes"
+**Models** page: **Download all for this PC** gets every model that fits your RAM, one at a time in the
+background (you can close the page). One "brain" model for chat/agents (Qwen3-VL 2B instruct on an 8–16 GB laptop) and tiny "eyes"
 models for screens, video and documents. **System 1** (Laya, MiniLM fallback) routes each message in milliseconds.
 Everything runs offline; cloud models are optional (keys in `.env`).
 
-## 7. When something's off
+## 7. Keep it up to date
+
+**Guide → Update from GitHub** (or double-click `Update NestCrew.bat`) downloads the newest version. Your
+`config.yaml`, `.env`, chats, Brain, workspace and saved workflows are kept. Then press **Restart now**.
+
+## 8. When something's off
 
 | You see | Do this |
 |---|---|
 | *NestCrew was updated — Restart now* | press it (closing only the window leaves the old one running) |
 | *NestCrew isn't running* right after a restart | wait ~30 s; it reloads by itself |
 | Phone can't open the link | same Wi-Fi? Windows Firewall → allow Python on Private networks; try `stop phone link` then start again |
+| Models all say "not downloaded" | Ollama isn't answering: Models → **Start Ollama**. Then **Download all for this PC** — downloads run one by one in the background |
+| 🎤 does nothing / "Microphone blocked" | allow the microphone for the NestCrew window (lock icon by the address); Windows Settings → Privacy → Microphone → allow desktop apps |
 | A task went to chat instead of doing it | press **Switch to Agent**, or pick **Agent** under the box |
 | Something went wrong | 👎 under the answer opens an **Incident**; `undo last move`; Recycle Bin |

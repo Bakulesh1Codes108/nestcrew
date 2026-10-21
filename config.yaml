@@ -88,6 +88,14 @@ phonelink:                          # Wi-Fi phone link (off until you start it)
   idle_minutes: 30                  # switches itself off when unused
   max_hours: 3
 
+update:
+  repo: Bakulesh1Codes108/nestcrew  # Guide → "Update from GitHub" / Update NestCrew.bat fetch from here
+
+voice:                              # 🎤 in the chat bar - speech to text on this PC (Whisper)
+  model: base                       # tiny | base | small (better for Indian accents) | medium
+  output: english                   # english = any language you speak becomes an English command; same = keep language
+  language:                         # leave empty to detect automatically (or: hi, mr, en ...)
+
 safety:
   permission_timeout: 300               # seconds to wait for your answer, then auto-deny
   command_timeout: 60                   # kill commands that run longer than this

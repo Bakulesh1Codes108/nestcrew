@@ -79,8 +79,63 @@ def _ollama() -> OllamaProvider:
     return OllamaProvider(load_config().get("local", {}))
 
 
+OLLAMA = {"up": None, "checked": 0.0}
+
+
+def _tags_cache() -> Path:
+    return resolve("./data/ollama_models.json")
+
+
+def ollama_tags(timeout: float = 6.0) -> tuple[bool, set[str]]:
+    """(Ollama answering?, downloaded model tags). When Ollama is slow or stopped, the last
+    known list is used, so models never look 'not downloaded' just because Ollama is busy."""
+    import time
+    base = _ollama().base
+    try:
+        r = httpx.get(f"{base}/api/tags", timeout=timeout)
+        tags = {m["name"] for m in r.json().get("models", [])}
+        OLLAMA.update(up=True, checked=time.time())
+        try:
+            _tags_cache().parent.mkdir(parents=True, exist_ok=True)
+            _tags_cache().write_text(json.dumps(sorted(tags)), encoding="utf-8")
+        except OSError:
+            pass
+        return True, tags
+    except Exception:
+        OLLAMA.update(up=False, checked=time.time())
+        try:
+            return False, set(json.loads(_tags_cache().read_text(encoding="utf-8")))
+        except (OSError, ValueError):
+            return False, set()
+
+
 def _installed_tags() -> set[str]:
-    return set(_ollama().installed_models())
+    return ollama_tags()[1]
+
+
+def ensure_ollama(wait: float = 0.0) -> bool:
+    """Start Ollama in the background if it isn't answering (finds it even if PATH isn't set)."""
+    import os
+    import shutil as sh
+    import time
+    if ollama_tags(2)[0]:
+        return True
+    exe = sh.which("ollama") or next((p for p in [
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Ollama\ollama.exe"),
+        "/usr/local/bin/ollama", "/opt/homebrew/bin/ollama"] if os.path.exists(p)), None)
+    if not exe:
+        return False
+    env = {**os.environ, "OLLAMA_MAX_LOADED_MODELS": "1", "OLLAMA_NUM_PARALLEL": "1"}
+    subprocess.Popen([exe, "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env,
+                     creationflags=0x08000000 if os.name == "nt" else 0)
+    from .safety import audit
+    audit(event="ollama_started", exe=exe)
+    end = time.time() + wait
+    while time.time() < end:
+        time.sleep(0.5)
+        if ollama_tags(2)[0]:
+            return True
+    return ollama_tags(2)[0]
 
 
 def is_installed(entry: dict, have: set[str] | None = None) -> bool:
@@ -183,6 +238,77 @@ def provider_for_task(task: str) -> Provider:
     if e and is_installed(e):
         return provider_for(mid)
     return _ollama()
+
+
+# ------------------------------------------------------------ download queue --
+QUEUE: dict[str, dict] = {}          # model id -> {state, percent, msg}; survives closing the page
+_QLOCK = __import__("threading").Lock()
+_WORKER: dict = {"thread": None}
+
+
+def queue_state() -> dict:
+    with _QLOCK:
+        return {k: dict(v) for k, v in QUEUE.items()}
+
+
+def recommended_for_pc() -> list[str]:
+    """Ollama models that suit this PC's memory and aren't downloaded yet, smallest first."""
+    from .hints import fit, system_ram_gb
+    import re
+    ram = system_ram_gb()
+    have = _installed_tags()
+    out = []
+    for mid, e in catalog()["models"].items():
+        if e.get("backend", "ollama") != "ollama" or is_installed(e, have):
+            continue
+        if fit(str(e.get("ram", "")), ram) == "heavy":
+            continue
+        size = [float(x) for x in re.findall(r"\d+(?:\.\d+)?", str(e.get("download", "")))] or [99]
+        mb = size[0] * (1 if "MB" in str(e.get("download", "")) else 1024)
+        out.append((mb, mid))
+    return [m for _, m in sorted(out)]
+
+
+def queue_pull(model_ids: list[str]) -> dict:
+    """Add models to the background download queue (one at a time, resumes after errors)."""
+    import threading
+    cat = catalog()["models"]
+    with _QLOCK:
+        for mid in model_ids:
+            if mid in cat and QUEUE.get(mid, {}).get("state") not in ("queued", "downloading"):
+                QUEUE[mid] = {"state": "queued", "percent": 0, "msg": "waiting"}
+        if not (_WORKER["thread"] and _WORKER["thread"].is_alive()):
+            _WORKER["thread"] = threading.Thread(target=_work_queue, daemon=True, name="model-downloads")
+            _WORKER["thread"].start()
+    return queue_state()
+
+
+def _work_queue() -> None:
+    from .safety import audit
+    while True:
+        with _QLOCK:
+            nxt = next((k for k, v in QUEUE.items() if v["state"] == "queued"), None)
+            if nxt:
+                QUEUE[nxt].update(state="downloading", msg="starting")
+        if not nxt:
+            return
+        if not ensure_ollama(wait=20):
+            with _QLOCK:
+                QUEUE[nxt].update(state="error", msg="Ollama isn't running - press Start Ollama, then try again")
+            continue
+        try:
+            for ev in pull(nxt):
+                with _QLOCK:
+                    if ev.get("percent") is not None:
+                        QUEUE[nxt]["percent"] = ev["percent"]
+                    QUEUE[nxt]["msg"] = ev.get("status", "")
+            with _QLOCK:
+                QUEUE[nxt].update(state="done", percent=100, msg="ready")
+            audit(event="model_pull", model=nxt)
+        except Exception as e:
+            with _QLOCK:
+                QUEUE[nxt].update(state="error", msg=str(e)[:200])
+            audit(event="model_pull_failed", model=nxt, error=str(e)[:200])
 
 
 # ---------------------------------------------------------- pull / remove ----

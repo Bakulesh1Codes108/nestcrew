@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import queue
 import secrets
 import shutil
@@ -10,6 +11,7 @@ import time
 import uuid
 from pathlib import Path
 
+from starlette.concurrency import run_in_threadpool
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
@@ -375,7 +377,33 @@ def crew(body: CrewIn):
 @app.get("/api/models")
 def models_list():
     from . import models
-    return {"models": models.status(), "tasks": models.task_map(), "task_help": models.TASK_HELP}
+    st = models.status()
+    return {"models": st, "tasks": models.task_map(), "task_help": models.TASK_HELP,
+            "ollama_up": bool(models.OLLAMA["up"]), "downloads": models.queue_state(),
+            "recommended": models.recommended_for_pc() if models.OLLAMA["up"] else []}
+
+
+@app.post("/api/models/pull_all")
+def models_pull_all(body: dict | None = None):
+    """'Download all for this PC' (or a given list) - runs in the background, one at a time."""
+    from . import models
+    ids = (body or {}).get("models") or models.recommended_for_pc()
+    audit(event="model_pull_all", models=ids)
+    return {"queued": ids, "downloads": models.queue_pull(ids)}
+
+
+@app.get("/api/models/downloads")
+def models_downloads():
+    from . import models
+    return models.queue_state()
+
+
+@app.post("/api/ollama/start")
+def ollama_start():
+    from . import models
+    up = models.ensure_ollama(wait=20)
+    return {"up": up, "message": "Ollama is running." if up else
+            "Couldn't start Ollama. Open the Ollama app from the Start menu, or reinstall it from ollama.com."}
 
 
 @app.post("/api/models/assign")
@@ -801,25 +829,9 @@ def _ensure_python_deps():
 
 
 def _ensure_ollama():
-    """Start Ollama in the background if it isn't running (finds it even if PATH isn't updated)."""
-    import os
-    import shutil as sh
-    import subprocess
-    import httpx
-    base = load_config().get("local", {}).get("base_url", "http://localhost:11434").rstrip("/")
-    try:
-        httpx.get(base + "/api/tags", timeout=2)
-        return
-    except httpx.HTTPError:
-        pass
-    exe = sh.which("ollama") or next((p for p in [
-        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Ollama\ollama.exe"),
-        "/usr/local/bin/ollama", "/opt/homebrew/bin/ollama"] if os.path.exists(p)), None)
-    if exe:
-        env = {**os.environ, "OLLAMA_MAX_LOADED_MODELS": "1", "OLLAMA_NUM_PARALLEL": "1"}
-        subprocess.Popen([exe, "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env,
-                         creationflags=0x08000000 if os.name == "nt" else 0)
-        audit(event="ollama_started", exe=exe)
+    """Start Ollama in the background if it isn't running."""
+    from . import models
+    models.ensure_ollama()
 
 
 @app.on_event("shutdown")
@@ -863,6 +875,50 @@ def phonelink_bluetooth(body: dict):
         raise HTTPException(400, str(e))
     audit(event="bluetooth_" + mode)
     return {"ok": True, "text": msg}
+
+
+# ------------------------------------------------------------------ update --
+@app.post("/api/update")
+async def update_app():
+    """Guide → 'Update from GitHub': new program files; settings, chats and workflows are kept."""
+    from . import updater
+    if RUNS:
+        raise HTTPException(409, "A task is still running - wait for it or press Stop, then update.")
+    try:
+        res = await run_in_threadpool(updater.update)
+    except Exception as e:
+        raise HTTPException(400, f"Update failed: {e}")
+    return {"repo": res["repo"], "changed": res["changed"][:60], "added": res["added"][:60],
+            "count": len(res["changed"]) + len(res["added"]), "deps": res["deps"]}
+
+
+# ------------------------------------------------------------------- voice --
+@app.get("/api/voice")
+def voice_status():
+    from . import voice
+    return voice.status()
+
+
+@app.post("/api/voice/install")
+def voice_install():
+    from . import voice
+    voice.install()
+    return voice.status()
+
+
+@app.post("/api/voice/transcribe")
+async def voice_transcribe(audio: UploadFile = File(...), output: str = Form("")):
+    from . import voice
+    data = await audio.read(25 * 1024 * 1024 + 1)
+    if len(data) > 25 * 1024 * 1024:
+        raise HTTPException(413, "That recording is too long - keep voice commands under a minute.")
+    suffix = os.path.splitext(audio.filename or "")[1] or ".webm"
+    try:
+        return await run_in_threadpool(voice.transcribe, data, suffix, output or None)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:                       # bad/empty audio: say so instead of a 500
+        raise HTTPException(400, f"Couldn't understand the recording ({type(e).__name__}). Try again.")
 
 
 @app.post("/api/clear")

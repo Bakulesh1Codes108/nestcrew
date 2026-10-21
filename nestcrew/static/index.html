@@ -85,6 +85,10 @@ table.tl{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px;whit
 .send{background:var(--accent);color:var(--accent-ink);border:none;font-weight:600;padding:7px 14px;border-radius:10px}
 .send:disabled{opacity:.5}.stop{background:var(--ink);color:var(--bg);border:none;font-weight:600;padding:7px 14px;border-radius:10px;display:none}
 .attach{border:1px solid var(--line2);background:none;border-radius:9px;padding:4px 9px;cursor:pointer}
+.mic{font:inherit;min-width:38px;color:var(--ink)}.mic.rec{background:#c0392b;color:#fff;border-color:#c0392b;animation:micpulse 1.2s ease-in-out infinite}
+.mic.busy{opacity:.6}@keyframes micpulse{50%{box-shadow:0 0 0 5px rgba(192,57,43,.18)}}
+@media (prefers-reduced-motion:reduce){.mic.rec{animation:none}}
+.vcard{border:1px solid var(--line2);border-radius:12px;padding:12px 14px;margin:6px 0 14px}.vcard label{display:block;margin:6px 0;font-size:14px}
 .cnote{max-width:780px;margin:6px auto 0;text-align:center;font-size:11.5px;color:var(--faint)}
 #panel{width:290px;flex:none;border-left:1px solid var(--line);background:var(--bg);display:flex;flex-direction:column;min-height:0}
 #panel.hide{display:none}
@@ -230,6 +234,7 @@ table.tl{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px;whit
         <textarea id="input" rows="1" placeholder="Ask anything, or give NestCrew a task…"></textarea>
         <div class="cbar">
           <label class="attach" title="Attach an image or video">📎<input id="file" type="file" accept="image/*,video/*" hidden></label>
+          <button class="attach mic" id="mic" type="button" title="Speak a task or command (Ctrl+Shift+Space)" aria-label="Voice command">🎤</button>
           <div class="modes" id="modes">
             <button data-mode="chat" class="on" title="Plain answer">Chat</button>
             <button data-mode="agent" title="Uses tools step by step, asks before risky actions">Agent</button>
@@ -290,10 +295,12 @@ table.tl{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px;whit
     <h2 class="sec">Which model does which job</h2>
     <p class="note">A capable "brain" runs chat and agents; tiny "eyes" models look at screens, video and documents. ★ marks the recommended model; hints explain each choice. Jobs use your default model until the chosen one is downloaded.</p>
     <div class="jobs" id="jobs"></div>
+    <h2 class="sec" style="margin-top:18px">🎤 Voice commands</h2><div class="vcard" id="voicecard">Checking…</div>
     <h2 class="sec">System 1 engine</h2>
     <p class="note">Fast typed decisions — hints, Canvas <b>Decide</b> steps, similar tasks. Never writes text.</p>
     <div class="jobs" id="s1eng"></div>
     <h2 class="sec">Models</h2><p class="note">Sizes are approximate. Downloads need internet once; everything runs offline after.</p>
+    <div id="mbar"></div>
     <div class="mgrid" id="mgrid"></div></div></div></section>
   <section class="view" id="v-guide"><div class="scroll"><div class="col md" id="guide"></div></div></section>
 </div>
@@ -380,6 +387,95 @@ async function loadPhone(){
 }
 $("#btrecv").onclick=async()=>{ try{ const r=await api("/api/phonelink/bluetooth",{mode:"receive"}); $("#btmsg").textContent=r.text; }catch(e){ $("#btmsg").textContent=e.message; } };
 $("#btsend").onclick=async()=>{ try{ const r=await api("/api/phonelink/bluetooth",{mode:"send"}); $("#btmsg").textContent=r.text; }catch(e){ $("#btmsg").textContent=e.message; } };
+
+/* ---------------------------------------------------------------- voice */
+const VOICE={rec:null,stream:null,chunks:[],t0:0,timer:null,ctx:null,cancel:false,spoke:false,status:null,sr:null,ph:""};
+const VOICE_MAX=60;
+function voicePref(k,d){ try{ const v=localStorage.getItem("nc_voice_"+k); return v===null?d:v==="1"; }catch(e){ return d; } }
+function setVoicePref(k,v){ try{ localStorage.setItem("nc_voice_"+k,v?"1":"0"); }catch(e){} }
+async function voiceStatus(){ try{ VOICE.status=await api("/api/voice"); }catch(e){ VOICE.status=null; } return VOICE.status; }
+function micUI(state,text){ const b=$("#mic"); b.classList.toggle("rec",state==="rec"); b.classList.toggle("busy",state==="busy");
+  b.textContent=state==="rec"?"■ "+(text||""):state==="busy"?"…":"🎤";
+  b.title=state==="rec"?"Listening — pause to finish, click to stop, Esc to cancel":"Speak a task or command (Ctrl+Shift+Space)"; }
+function listening(on,text){ const i=$("#input"); if(on){ if(!VOICE.ph) VOICE.ph=i.placeholder; i.placeholder=text||"Listening… say your task. Pause to finish, Esc to cancel"; }
+  else if(VOICE.ph){ i.placeholder=VOICE.ph; VOICE.ph=""; } }
+async function micClick(){
+  if(VOICE.rec){ stopRec(false); return; }
+  if(VOICE.sr){ VOICE.sr.stop(); return; }
+  const st=VOICE.status&&VOICE.status.ready?VOICE.status:await voiceStatus();
+  if(st&&st.ready) return startRec();
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(SR&&navigator.onLine){ browserSR(SR); if(!voicePref("offered",false)){ setVoicePref("offered",true); toast("Using the browser's online speech. For private, offline voice: Models → Voice → Enable."); } return; }
+  show("models"); toast("Set up offline voice once (Models → Voice commands)");
+}
+async function startRec(){
+  if(!navigator.mediaDevices||!window.MediaRecorder){ toast("This window can't record audio."); return; }
+  try{ VOICE.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}}); }
+  catch(e){ toast("Microphone blocked — allow the microphone for NestCrew (lock icon by the address) and try again."); return; }
+  const mime=["audio/webm;codecs=opus","audio/ogg;codecs=opus","audio/webm",""].find(m=>!m||MediaRecorder.isTypeSupported(m));
+  VOICE.rec=new MediaRecorder(VOICE.stream,mime?{mimeType:mime}:{}); VOICE.chunks=[]; VOICE.cancel=false; VOICE.spoke=false;
+  VOICE.rec.ondataavailable=e=>{ if(e.data&&e.data.size) VOICE.chunks.push(e.data); };
+  VOICE.rec.onstop=onRecStop; VOICE.rec.start(250); VOICE.t0=Date.now(); listening(true); micUI("rec","0:00");
+  let quiet=Date.now(), an=null, buf=null; const AC=window.AudioContext||window.webkitAudioContext;
+  if(AC){ try{ VOICE.ctx=new AC(); const src=VOICE.ctx.createMediaStreamSource(VOICE.stream); an=VOICE.ctx.createAnalyser(); an.fftSize=1024; src.connect(an); buf=new Uint8Array(an.fftSize); }catch(e){ an=null; } }
+  VOICE.timer=setInterval(()=>{ const secs=(Date.now()-VOICE.t0)/1000;
+    if(an){ an.getByteTimeDomainData(buf); let sum=0; for(const v of buf){ const d=(v-128)/128; sum+=d*d; }
+      if(Math.sqrt(sum/buf.length)>0.035){ VOICE.spoke=true; quiet=Date.now(); } }
+    micUI("rec",Math.floor(secs/60)+":"+String(Math.floor(secs%60)).padStart(2,"0"));
+    if(secs>VOICE_MAX) stopRec(false);
+    else if(an&&VOICE.spoke&&Date.now()-quiet>1600) stopRec(false);          // you paused: done
+    else if(an&&!VOICE.spoke&&secs>8) stopRec(true);                        // nothing said
+  },100);
+}
+function stopRec(cancel){ VOICE.cancel=cancel; clearInterval(VOICE.timer);
+  try{ VOICE.rec&&VOICE.rec.state!=="inactive"&&VOICE.rec.stop(); }catch(e){}
+  try{ VOICE.stream&&VOICE.stream.getTracks().forEach(t=>t.stop()); }catch(e){}
+  try{ VOICE.ctx&&VOICE.ctx.close(); }catch(e){} VOICE.ctx=null; }
+async function onRecStop(){ const rec=VOICE.rec; VOICE.rec=null; listening(false);
+  if(VOICE.cancel){ micUI(); if(!VOICE.spoke) toast("Didn't hear anything — try again a bit closer to the mic"); return; }
+  const blob=new Blob(VOICE.chunks,{type:(rec&&rec.mimeType)||"audio/webm"}); micUI("busy"); listening(true,"Turning your words into text…");
+  const fd=new FormData(); fd.append("audio",blob,"voice."+(blob.type.includes("ogg")?"ogg":"webm")); fd.append("output",voicePref("english",true)?"english":"same");
+  try{ const r=await fetch("/api/voice/transcribe",{method:"POST",headers:{"x-nestcrew-token":TOKEN},body:fd});
+    const j=await r.json().catch(()=>({})); if(!r.ok){ if(staleToken(r,j)) return; throw new Error(j.detail||r.statusText); }
+    voiceText(j.text); }
+  catch(e){ toast(e.message); } finally{ listening(false); micUI(); } }
+function browserSR(SR){ const r=new SR(); VOICE.sr=r; r.lang=navigator.language||"en-IN"; r.interimResults=true; r.maxAlternatives=1;
+  let final=""; micUI("rec","…"); listening(true);
+  r.onresult=e=>{ let interim=""; for(let i=e.resultIndex;i<e.results.length;i++){ const t=e.results[i][0].transcript; if(e.results[i].isFinal) final+=t; else interim+=t; }
+    if(interim) listening(true,"“"+interim+"”"); };
+  r.onerror=e=>{ if(e.error==="not-allowed") toast("Microphone blocked — allow it for NestCrew."); else if(e.error!=="no-speech"&&e.error!=="aborted") toast("Voice: "+e.error+" (try Models → Voice → Enable offline voice)"); };
+  r.onend=()=>{ VOICE.sr=null; listening(false); micUI(); if(final.trim()) voiceText(final); };
+  try{ r.start(); }catch(e){ VOICE.sr=null; micUI(); listening(false); toast("Voice couldn't start: "+e.message); } }
+const VOICE_CMDS=[
+  [/^(stop|cancel|abort)( (it|that|the task|task|this))?$/, ()=>{ if($("#stop").offsetParent) $("#stop").click(); else toast("Nothing is running"); }],
+  [/^(start )?(a )?new chat$/, ()=>$("#newchat").click()],
+  [/^(send|send it|go|go ahead|do it|run it)$/, ()=>send()],
+  [/^(clear|clear (it|that|the box|the text)|delete (that|the text))$/, ()=>{ $("#input").value=""; }],
+  [/^(open|show|go to)( the)? (phone|canvas|brain|models?|guide|incidents|automations|chat)( page| tab)?$/, m=>show({model:"models",automations:"autos"}[m[3]]||m[3])],
+  [/^(allow|approve|yes,? allow( it)?|allow once)$/, ()=>{ const b=[...document.querySelectorAll("button")].filter(x=>x.textContent.trim()==="Allow once"&&x.offsetParent).pop(); b?b.click():toast("Nothing is waiting for approval"); }],
+  [/^(deny|no|don'?t|reject)( it)?$/, ()=>{ const b=[...document.querySelectorAll("button")].filter(x=>x.textContent.trim()==="Deny"&&x.offsetParent).pop(); b?b.click():toast("Nothing is waiting for approval"); }],
+];
+function voiceText(text){ const t=String(text||"").trim(); if(!t){ toast("Didn't catch that — try again"); return; }
+  const norm=t.toLowerCase().replace(/[.!?,;:]+/g," ").replace(/\s+/g," ").trim().replace(/^(?:(?:please|okay|ok|hey|hi)\b\s*)?(?:(?:nestcrew|nest crew)\b\s*)?/,"").replace(/\s+please$/,"").trim();
+  for(const [re,fn] of VOICE_CMDS){ const m=norm.match(re); if(m){ toast("🎤 “"+t+"”"); fn(m); return "command"; } }
+  const inp=$("#input"); inp.value=(inp.value.trim()?inp.value.trim()+" ":"")+t.replace(/[.。]$/,""); inp.dispatchEvent(new Event("input")); inp.focus();
+  if(voicePref("autosend",false)) send(); return "text"; }
+async function loadVoiceCard(){ const st=await voiceStatus(); const c=$("#voicecard"); if(!c) return; if(!st){ c.textContent="Couldn't read voice settings."; return; }
+  const SR=!!(window.SpeechRecognition||window.webkitSpeechRecognition);
+  c.innerHTML=`<p style="margin:0 0 6px">${st.ready?`✓ <b>Offline voice ready</b> — Whisper “${esc(st.model)}” (${esc(st.model_info)}). Your voice never leaves this PC.`
+      :st.installing?`⏳ ${esc(st.install_msg)}`
+      :`Offline voice isn't set up. ${SR?"Until then the 🎤 uses the browser's online speech recognition.":""}<br>
+        <button class="btn2 pri" id="vinstall" style="margin-top:6px">Enable offline voice (${esc(st.model_info||"one download")})</button>${st.install_msg?`<br><span class="note">${esc(st.install_msg)}</span>`:""}`}</p>
+    <label><input type="checkbox" id="vauto" ${voicePref("autosend",false)?"checked":""}> Send automatically after I stop speaking</label>
+    <label><input type="checkbox" id="veng" ${voicePref("english",true)?"checked":""}> Turn Hindi / Marathi / any language into an English command</label>
+    <p class="note">Press 🎤 (or Ctrl+Shift+Space) and speak; it stops when you pause. Say a task (“move all photos from Downloads to Pictures”) or a command: <i>stop</i>, <i>send</i>, <i>clear</i>, <i>new chat</i>, <i>allow</i> / <i>deny</i>, <i>open phone / canvas / models</i>.</p>`;
+  $("#vauto").onchange=e=>setVoicePref("autosend",e.target.checked); $("#veng").onchange=e=>setVoicePref("english",e.target.checked);
+  const b=$("#vinstall"); if(b) b.onclick=async()=>{ b.disabled=true; try{ await api("/api/voice/install",{}); }catch(e){ toast(e.message); } pollVoice(); };
+  if(st.installing) pollVoice(); }
+function pollVoice(){ clearTimeout(pollVoice._t); pollVoice._t=setTimeout(async()=>{ const st=await voiceStatus(); if(view==="models") loadVoiceCard(); else if(st&&st.installing) pollVoice(); else if(st&&st.ready) toast("🎤 Offline voice is ready"); },2000); }
+$("#mic").onclick=micClick;
+addEventListener("keydown",e=>{ if(e.ctrlKey&&e.shiftKey&&e.code==="Space"){ e.preventDefault(); micClick(); }
+  else if(e.key==="Escape"&&(VOICE.rec||VOICE.sr)){ if(VOICE.rec) stopRec(true); else VOICE.sr.abort(); } });
 
 /* ---------------------------------------------------------------- status + recent */
 async function status(){
@@ -729,6 +825,7 @@ async function loadAutos(){
 
 /* ---------------------------------------------------------------- models */
 async function loadModels(){
+  loadVoiceCard();
   let d; try{ d=await api("/api/models"); }catch(e){ $("#mgrid").textContent="⚠ "+e.message; return; }
   const visible=d.models.filter(m=>m.kind!=="embedding");
   $("#jobs").innerHTML=Object.entries(d.task_help).map(([t,help])=>{ const cur=d.models.find(m=>m.id===d.tasks[t]); const jh=cur?.job_hints?.[t];
@@ -753,22 +850,35 @@ async function loadModels(){
     if($("#layainst")) $("#layainst").onclick=async()=>{ if(!confirm("Download and install Laya (open-source, Apache-2.0) with PyTorch into NestCrew? About 1 GB, needs internet once.")) return;
       $("#layainst").disabled=true; await stream("/api/system1/install_laya",{},ev=>{ $("#layaprog").textContent=ev.status; }); setTimeout(loadModels,4000); };
   }catch(e){}
+  const dl=d.downloads||{}, busyDl=Object.values(dl).some(x=>x.state==="queued"||x.state==="downloading");
+  const recSize=(d.recommended||[]).map(id=>d.models.find(m=>m.id===id)).filter(Boolean);
+  $("#mbar").innerHTML=!d.ollama_up
+    ?`<div class="vcard" style="border-color:#c0392b"><b>⚠ Ollama isn't answering</b> — it runs the local models. The list below shows what was downloaded last time.<br>
+       <button class="btn2 pri" id="ollstart" style="margin-top:6px">Start Ollama</button> <span class="note" id="ollmsg"></span></div>`
+    :recSize.length?`<div class="vcard"><button class="btn2 pri" id="pullall">Download all for this PC (${recSize.length})</button>
+       <span class="note"> ${recSize.map(m=>esc(m.name)+" "+esc(m.download)).join(" · ")} — one at a time in the background; you can close this page.</span></div>`
+    :busyDl?"":`<p class="note">✓ Every model that suits this PC is downloaded.</p>`;
+  if($("#ollstart")) $("#ollstart").onclick=async()=>{ $("#ollstart").disabled=true; $("#ollmsg").textContent="Starting… (up to 20 s)";
+    try{ const r=await api("/api/ollama/start",{}); $("#ollmsg").textContent=r.message; }catch(e){ $("#ollmsg").textContent=e.message; } loadModels(); status(); };
+  if($("#pullall")) $("#pullall").onclick=async()=>{ $("#pullall").disabled=true; try{ await api("/api/models/pull_all",{}); }catch(e){ toast(e.message); } loadModels(); };
+  clearTimeout(loadModels._t); if(busyDl&&view==="models") loadModels._t=setTimeout(()=>{ loadModels(); status(); },3000);
   const fitTag={easy:'<span class="tag ok">light for this PC</span>',ok:'<span class="tag">fine for this PC</span>',heavy:'<span class="tag warn">heavy for this PC</span>'};
   $("#mgrid").innerHTML=d.models.map(m=>`<div class="card" data-id="${esc(m.id)}">
     <h3>${esc(m.name)}</h3><div class="sub">${esc(m.params)} params · ${esc(m.download)} · ${esc(m.ram)} RAM</div>
     <div class="best">${esc(m.best_for)}</div><div class="sub">${esc(m.key_feature)}<br>Limits: ${esc(m.limits)}</div>
     <div>${m.installed?'<span class="tag ok">on this PC</span>':'<span class="tag">not downloaded</span>'} ${fitTag[m.fit]||""} ${m.kind==="embedding"?'<span class="tag">System 1</span>':m.vision?'<span class="tag">sees images</span>':'<span class="tag">text only</span>'} ${m.tools?'<span class="tag">tool use</span>':''} ${m.backend!=="ollama"?'<span class="tag">'+esc(m.backend)+'</span>':''} ${m.used_for.map(t=>'<span class="tag ok">'+esc(t)+'</span>').join(" ")}</div>
     <div class="row">${m.installed?(m.backend==="ollama"?'<button class="btn2" data-act="remove">Remove</button>':''):(m.backend==="ollama"?'<button class="btn2 pri" data-act="pull">Download</button>':'')}
-    ${m.kind!=="embedding"?'<button class="btn2" data-act="try">Use in chat</button>':''}</div><div class="sub prog"></div></div>`).join("");
+    ${m.kind!=="embedding"?'<button class="btn2" data-act="try">Use in chat</button>':''}</div><div class="sub prog">${dl[m.id]?esc({queued:"Queued",downloading:"Downloading",done:"✓ Downloaded",error:"✗ "}[dl[m.id].state]+(dl[m.id].state==="downloading"?" "+(dl[m.id].percent||0)+"% · "+dl[m.id].msg:dl[m.id].state==="error"?dl[m.id].msg:"")):""}</div></div>`).join("");
+  $$("#mgrid .card").forEach(c=>{ const x=dl[c.dataset.id]; if(x&&(x.state==="queued"||x.state==="downloading")) c.querySelectorAll("button[data-act=pull]").forEach(b=>b.disabled=true); });
   $$("#mgrid button").forEach(b=>b.onclick=()=>modelAction(b.closest(".card").dataset.id,b.dataset.act,b.closest(".card")));
   const cur=$("#provider").value; $("#pcmodels").innerHTML=visible.filter(m=>m.installed).map(m=>`<option value="${esc(m.id)}">${esc(m.name)}</option>`).join(""); $("#provider").value=cur;
 }
 async function modelAction(id,act,card){
   if(act==="try"){ $("#provider").value=id; if($("#provider").value!==id){ toast("Download it first"); return; } setMode("chat"); show("chat"); toast("Chat now uses "+id); return; }
   if(act==="remove"){ if(!confirm("Remove this model from your PC? You can download it again later.")) return; try{ await api("/api/models/remove",{model:id}); }catch(e){ toast(e.message); } loadModels(); return; }
-  const prog=card.querySelector(".prog"); card.querySelectorAll("button").forEach(b=>b.disabled=true);
-  await stream("/api/models/pull",{model:id},ev=>{ prog.textContent=ev.status+(ev.percent!=null?" "+ev.percent+"%":""); });
-  loadModels(); status();
+  card.querySelectorAll("button").forEach(b=>b.disabled=true);          // background download: survives closing the page
+  try{ await api("/api/models/pull_all",{models:[id]}); }catch(e){ toast(e.message); }
+  loadModels();
 }
 
 /* ---------------------------------------------------------------- canvas */
@@ -982,7 +1092,12 @@ $("#wfrun").onclick=async()=>{
 };
 
 /* ---------------------------------------------------------------- guide */
-async function loadGuide(){ try{ $("#guide").innerHTML=md((await api("/api/guide")).markdown); }catch(e){ $("#guide").textContent="⚠ "+e.message; } }
+async function loadGuide(){ try{ $("#guide").innerHTML=`<div class="vcard"><b>Update NestCrew</b> — get the newest version from GitHub. Your settings, chats, workflows and files are kept.
+    <br><button class="btn2 pri" id="updnow" style="margin-top:6px">Update from GitHub</button> <span class="note" id="updmsg"></span></div>`+md((await api("/api/guide")).markdown);
+  $("#updnow").onclick=async()=>{ $("#updnow").disabled=true; $("#updmsg").textContent="Downloading…";
+    try{ const r=await api("/api/update",{}); $("#updmsg").textContent=r.count?`Updated ${r.count} file(s). Press “Restart now” at the bottom to use them.`:"Already up to date."; status(); }
+    catch(e){ $("#updmsg").textContent=e.message; $("#updnow").disabled=false; } };
+  }catch(e){ $("#guide").textContent="⚠ "+e.message; } }
 function inl(t){ return esc(t).replace(/`([^`]+)`/g,"<code>$1</code>").replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>").replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>'); }
 function md(src){
   const L=src.replace(/\r/g,"").split("\n"); let h="", i=0;

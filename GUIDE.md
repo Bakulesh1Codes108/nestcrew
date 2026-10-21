@@ -188,6 +188,12 @@ If the phone isn't found: unlock it and pick **File transfer** in the USB notifi
 the Windows drive C: itself is never a target): `how much space is left on my drives`,
 `scan E drive`, `move all videos from E:/DCIM to Videos/Camera`, `copy everything from D drive/Old photos to Pictures/Old`.
 
+### Voice commands 🎤
+
+Press **🎤** in the chat bar (or Ctrl+Shift+Space), speak, pause. The words go into the box (or are sent, if you
+turn that on). Say *stop*, *send*, *clear*, *new chat*, *allow*, *deny*, *open models*… as commands. Offline and private
+with Whisper: **Models → Voice commands → Enable offline voice** (once, ~150 MB). Any language → English command.
+
 ### Phone link — Wi-Fi and Bluetooth
 
 Sidebar **📱 Phone**. **Wi-Fi** (fast): *Start Wi-Fi link* → scan the QR code with the phone → a page opens in the

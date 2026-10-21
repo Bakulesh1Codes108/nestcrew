@@ -17,6 +17,7 @@ and every finished task can be saved as a visual, versioned workflow.
 | 💬 **Chat, Agent, Crew, Video** | Chat with a local vision model; give an **agent** a task and watch each step; run multi-agent **crews**; analyse **videos** frame by frame into a CSV + chart. |
 | 🗂 **RPA tools** | Copy / move / rename files, create folders, find files, read / write / append **Excel & CSV** in Desktop, Documents, Downloads, other drives… Big jobs run in batches; moves are undoable; nothing is overwritten. |
 | 🧹 **Clean-up** | Scan a folder, find byte-exact duplicates and junk, sort by type or month, free space — "delete" only ever means the **Recycle Bin**. A **Cleaner** specialist handles big jobs. |
+| 🎤 **Voice** | Speak tasks and commands ("stop", "allow", "open models") in the chat bar; transcribed **on the PC** with Whisper, any language → English command. |
 | 📱 **Phone link** | **Wi-Fi**: scan a QR code and the phone's browser sends photos/videos to the PC (each verified → "safe to delete from Gallery") and downloads shared files — no app. **Bluetooth** via Windows' own transfer. **USB**: copy DCIM in batches. Never deletes on the phone. |
 | 🧑‍💼 **Specialist sub-agents** | The main agent can **delegate** to a file clerk, Excel analyst, researcher or writer — each with its own small tool set and the same approval rules. |
 | ✋ **Asks before acting** | Approval cards show exactly what will change (which files, which rows). Allow once / for this task / deny. Stop interrupts even a model mid-answer. |
