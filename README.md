@@ -28,6 +28,19 @@ and every finished task can be saved as a visual, versioned workflow.
 | ◎ **Brain & learning loop** | Every run is a trace. 👍 runs guide similar tasks and export as a fine-tuning dataset; 👎 opens an incident. |
 | 🧩 **Right model per job** | One "brain" model plans; tiny "eyes" models (SmolVLM2 256M/500M, LFM2-VL, Granite Vision…) read screens, videos and documents. Paid cloud APIs are optional. |
 
+## In numbers
+
+| | |
+|---|---|
+| 💰 **Cost per task** | **$0** — open models on your own CPU; cloud APIs only if you add a key |
+| 🪙 **Tokens for plain file commands** | **0** — copy / move / clean / sort / phone backup become exact steps in **< 1 ms** without calling a model (a model step reads ~1.6k tokens) |
+| ⚡ **Batch file speed** | **2,000 photos (400 MB) copied in ~1.1 s**, moved in 0.5 s · byte-exact duplicate scan of 2,285 files in 0.5 s *(2-vCPU benchmark)* |
+| 🧠 **Footprint** | 256M–2B vision models (0.3–2.4 GB) · Whisper voice ~150 MB · MiniLM router 46 MB · runs on an 8 GB laptop |
+| ✅ **Quality** | **312 offline tests**, CI on Windows + Linux · every file change approval-gated · Recycle Bin only · nothing ever overwritten |
+
+How each number was measured, live laptop numbers, and a roadmap of ways to improve: **[docs/METRICS.md](docs/METRICS.md)** ·
+reproduce with `python scripts/benchmark.py`.
+
 ## Architecture
 
 ```mermaid
@@ -161,10 +174,9 @@ config.yaml      permissions, folders, safety, System 1 engine
 
 ## Roadmap
 
-- Record mouse/keyboard steps in desktop apps as bot steps
-- Local RAG over your documents
-- Spoken replies (Piper text-to-speech) to go with voice commands
-- Packaged installer (single .exe)
+Per-task token log · more 0-token command patterns (Excel) · GPU/NPU offload · streaming voice + spoken replies ·
+signed updates · Android companion for verified deletes · local RAG · fine-tuning from Brain traces · desktop click
+recording · single `.exe` installer — details and effort in **[docs/METRICS.md](docs/METRICS.md#ways-to-make-it-better-contributions-welcome)**.
 
 ## Author
 
