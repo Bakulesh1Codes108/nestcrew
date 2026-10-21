@@ -16,8 +16,11 @@ House rules, everywhere:
 **Speak instead of typing:** press **🎤** in the chat bar (or **Ctrl+Shift+Space**), say the task, pause — it
 stops by itself and puts the words in the box. Spoken commands: *stop*, *send*, *clear*, *new chat*, *allow* / *deny*
 (answers an approval card), *open phone / canvas / models / brain / guide*. Speech is turned into text **on this PC**
-(Whisper — **Models → Voice commands → Enable offline voice**, one ~150 MB download); speak Hindi, Marathi or any language
-and it becomes an English command. Options there: send automatically after speaking; keep your language instead.
+(Whisper — **Models → Voice commands → Enable offline voice**, one ~150 MB download).
+**Marathi / Hindi → English command:** say *"Downloads मधले सगळे फोटो Pictures मध्ये हलव"* or
+*"BIRAC की सारी फ़ाइलें BIRAC2 में कॉपी करो"* and NestCrew receives *"Move all the photos from Downloads to Pictures"* /
+*"Copy all the files from BIRAC to BIRAC2"* and runs it like a typed command (same approval cards). Any other language
+works the same way. For stronger Indian-accent recognition set `voice.model: small` in `config.yaml`. Options there: send automatically after speaking; keep your language instead.
 
 ---
 

@@ -132,3 +132,21 @@ def test_real_audio_decoding_of_an_app_recording():
     fw = pytest.importorskip("faster_whisper")
     audio = fw.decode_audio(str(TONE))
     assert 1.8 * 16000 < len(audio) < 2.2 * 16000          # 2 s at 16 kHz: what Whisper gets
+
+
+@pytest.mark.parametrize("spoken,tool", [
+    ("Move all the photos from Downloads to Pictures.", "move_files"),        # from Marathi
+    ("Copy all the files from BIRAC folder to BIRAC2.", "copy_files"),        # from Hindi
+    ("Clean up Downloads.", "recycle_files"),
+])
+def test_translated_marathi_hindi_commands_run_as_file_tasks(spoken, tool, tmp_path_factory, monkeypatch):
+    from nestcrew import hints, rpa
+    from nestcrew.config import load_config
+    h = tmp_path_factory.mktemp("home")
+    for d in ("Desktop/BIRAC", "Desktop/BIRAC2", "Downloads", "Pictures"):
+        (h / d).mkdir(parents=True)
+    monkeypatch.setattr(rpa, "_home", lambda: h)
+    monkeypatch.setitem(load_config(), "rpa", {"folders": ["desktop", "downloads", "pictures"]})
+    plan = rpa.quick_plan(spoken.rstrip("."))
+    assert plan and tool in [s["tool"] for s in plan]
+    assert hints.hint(spoken)["type"] == "files"

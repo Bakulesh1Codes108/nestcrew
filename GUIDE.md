@@ -192,7 +192,9 @@ the Windows drive C: itself is never a target): `how much space is left on my dr
 
 Press **🎤** in the chat bar (or Ctrl+Shift+Space), speak, pause. The words go into the box (or are sent, if you
 turn that on). Say *stop*, *send*, *clear*, *new chat*, *allow*, *deny*, *open models*… as commands. Offline and private
-with Whisper: **Models → Voice commands → Enable offline voice** (once, ~150 MB). Any language → English command.
+with Whisper: **Models → Voice commands → Enable offline voice** (once, ~150 MB).
+**Speak Marathi or Hindi** — e.g. *"Downloads मधले सगळे फोटो Pictures मध्ये हलव"* — and it becomes the English command
+*"Move all the photos from Downloads to Pictures"*, then runs with the usual approval cards.
 
 ### Phone link — Wi-Fi and Bluetooth
 

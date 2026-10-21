@@ -17,7 +17,7 @@ and every finished task can be saved as a visual, versioned workflow.
 | 💬 **Chat, Agent, Crew, Video** | Chat with a local vision model; give an **agent** a task and watch each step; run multi-agent **crews**; analyse **videos** frame by frame into a CSV + chart. |
 | 🗂 **RPA tools** | Copy / move / rename files, create folders, find files, read / write / append **Excel & CSV** in Desktop, Documents, Downloads, other drives… Big jobs run in batches; moves are undoable; nothing is overwritten. |
 | 🧹 **Clean-up** | Scan a folder, find byte-exact duplicates and junk, sort by type or month, free space — "delete" only ever means the **Recycle Bin**. A **Cleaner** specialist handles big jobs. |
-| 🎤 **Voice** | Speak tasks and commands ("stop", "allow", "open models") in the chat bar; transcribed **on the PC** with Whisper, any language → English command. |
+| 🎤 **Voice** | Speak tasks and commands ("stop", "allow", "open models") in the chat bar; transcribed **on the PC** with Whisper. **Speak in Marathi or Hindi (or any language) → NestCrew runs it as an English command.** |
 | 📱 **Phone link** | **Wi-Fi**: scan a QR code and the phone's browser sends photos/videos to the PC (each verified → "safe to delete from Gallery") and downloads shared files — no app. **Bluetooth** via Windows' own transfer. **USB**: copy DCIM in batches. Never deletes on the phone. |
 | 🧑‍💼 **Specialist sub-agents** | The main agent can **delegate** to a file clerk, Excel analyst, researcher or writer — each with its own small tool set and the same approval rules. |
 | ✋ **Asks before acting** | Approval cards show exactly what will change (which files, which rows). Allow once / for this task / deny. Stop interrupts even a model mid-answer. |
@@ -78,6 +78,21 @@ Canvas bots and automations, with what happens at each step.
 **Phone over Wi-Fi in 3 steps:** sidebar **📱 Phone** → *Start Wi-Fi link* → scan the QR code with the phone's camera.
 Pick photos/videos → each one is verified on the PC → the page says when they're safe to delete from your Gallery.
 Then on the PC: `delete duplicates in From phone`, `organize From phone by month`.
+
+### 🎤 Voice commands in Marathi, Hindi or English
+
+Press **🎤** in the chat bar (or **Ctrl+Shift+Space**) and speak. Whisper runs **on your PC** (nothing is uploaded) and
+translates what you say into an English command, so Marathi and Hindi work just like English:
+
+| You say | NestCrew gets |
+|---|---|
+| *"Downloads मधले सगळे फोटो Pictures मध्ये हलव"* (Marathi) | `Move all the photos from Downloads to Pictures` |
+| *"BIRAC फ़ोल्डर की सारी फ़ाइलें BIRAC2 में कॉपी करो"* (Hindi) | `Copy all the files from BIRAC folder to BIRAC2` |
+| *"Downloads साफ कर"* | `Clean up Downloads` |
+| *"stop"* / *"allow"* / *"open models"* | stops the task / approves the card / opens Models |
+
+Turn it on once: **Models → Voice commands → Enable offline voice** (~150 MB; `small` model in `config.yaml` is
+better for Indian accents). Prefer to keep your language in the text? Untick *"Turn Hindi / Marathi … into English"*.
 
 ## Quick start (Windows)
 
@@ -148,7 +163,7 @@ config.yaml      permissions, folders, safety, System 1 engine
 
 - Record mouse/keyboard steps in desktop apps as bot steps
 - Local RAG over your documents
-- Voice in/out (whisper.cpp + Piper)
+- Spoken replies (Piper text-to-speech) to go with voice commands
 - Packaged installer (single .exe)
 
 ## Author

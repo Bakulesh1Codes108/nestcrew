@@ -11,6 +11,10 @@ Suggested bullets (pick 3–4):
 - Built a visual workflow editor (DAG engine, branching on typed "System 1" decisions, folder-watch/schedule triggers) where finished agent runs can be captured as replayable RPA bots, with version history and visual diff/restore.
 - Integrated an open-source "System One" decision model (Laya, `/v1/systemone` protocol) for millisecond task routing and hints, with embedding and keyword fallbacks.
 - Added observability and a learning loop: every run stored as a trace; ratings feed in-context lessons and a chat-format fine-tuning dataset; failures and blocked actions logged as incidents.
+- Added offline multilingual voice control: on-device Whisper (faster-whisper, int8 CPU) turns spoken Marathi, Hindi
+  or English into English commands that drive the same agent and RPA pipeline, with spoken approvals ("allow"/"deny").
+- Built a Wi-Fi phone link (QR pairing, LAN-only, size-verified uploads) plus USB/MTP and Bluetooth paths for
+  backing up and cleaning a phone, and a Recycle-Bin-only clean-up toolkit (duplicates, junk, sorting, batches).
 - Hardened the local server (loopback-only, per-launch token, CSP, prompt-injection wrapping, secret redaction, command blocklist, audit log) and covered it with 100+ offline tests in CI on Windows and Linux.
 
 Talking points for interviews:
