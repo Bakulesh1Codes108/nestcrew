@@ -2,9 +2,9 @@
 .env
 
 # local data (chat history, agent outputs)
-data/
-workspace/*
-!workspace/.gitkeep
+/data/
+/workspace/*
+!/workspace/.gitkeep
 
 # model weights never go in git (Ollama stores them outside the repo anyway)
 *.gguf
