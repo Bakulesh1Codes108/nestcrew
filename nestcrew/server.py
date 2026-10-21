@@ -793,7 +793,7 @@ def _ensure_python_deps():
     import importlib.util
     import subprocess
     import sys
-    missing = [pkg for mod, pkg in (("openpyxl", "openpyxl>=3.1"), ("send2trash", "send2trash>=1.8")) if importlib.util.find_spec(mod) is None]
+    missing = [pkg for mod, pkg in (("openpyxl", "openpyxl>=3.1"), ("send2trash", "send2trash>=1.8"), ("qrcode", "qrcode>=7.4")) if importlib.util.find_spec(mod) is None]
     if missing:
         r = subprocess.run([sys.executable, "-m", "pip", "install", "-q", *missing], capture_output=True,
                            creationflags=0x08000000 if sys.platform == "win32" else 0)
@@ -824,8 +824,45 @@ def _ensure_ollama():
 
 @app.on_event("shutdown")
 def _stop_helpers():
-    from . import system1
+    from . import phonelink, system1
     system1.stop_laya()
+    phonelink.stop()                     # the Wi-Fi link never outlives NestCrew
+
+
+# ------------------------------------------------------------- phone link --
+@app.get("/api/phonelink")
+def phonelink_status():
+    from . import phonelink
+    return phonelink.status()
+
+
+@app.post("/api/phonelink/start")
+def phonelink_start():
+    """Pressing Start on the Phone page is your approval."""
+    from . import phonelink
+    try:
+        return phonelink.start()
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/phonelink/stop")
+def phonelink_stop():
+    from . import phonelink
+    phonelink.stop()
+    return phonelink.status()
+
+
+@app.post("/api/phonelink/bluetooth")
+def phonelink_bluetooth(body: dict):
+    from . import phonelink
+    mode = "send" if body.get("mode") == "send" else "receive"
+    try:
+        msg = phonelink.bluetooth_send() if mode == "send" else phonelink.bluetooth_receive()
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    audit(event="bluetooth_" + mode)
+    return {"ok": True, "text": msg}
 
 
 @app.post("/api/clear")

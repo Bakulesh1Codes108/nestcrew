@@ -15,7 +15,9 @@ and every finished task can be saved as a visual, versioned workflow.
 | | |
 |---|---|
 | 💬 **Chat, Agent, Crew, Video** | Chat with a local vision model; give an **agent** a task and watch each step; run multi-agent **crews**; analyse **videos** frame by frame into a CSV + chart. |
-| 🗂 **RPA tools** | Copy / move / rename files, create folders, find files, read / write / append **Excel & CSV** in Desktop, Documents, Downloads… Moves are undoable, nothing is overwritten, there is no delete tool. |
+| 🗂 **RPA tools** | Copy / move / rename files, create folders, find files, read / write / append **Excel & CSV** in Desktop, Documents, Downloads, other drives… Big jobs run in batches; moves are undoable; nothing is overwritten. |
+| 🧹 **Clean-up** | Scan a folder, find byte-exact duplicates and junk, sort by type or month, free space — "delete" only ever means the **Recycle Bin**. A **Cleaner** specialist handles big jobs. |
+| 📱 **Phone link** | **Wi-Fi**: scan a QR code and the phone's browser sends photos/videos to the PC (each verified → "safe to delete from Gallery") and downloads shared files — no app. **Bluetooth** via Windows' own transfer. **USB**: copy DCIM in batches. Never deletes on the phone. |
 | 🧑‍💼 **Specialist sub-agents** | The main agent can **delegate** to a file clerk, Excel analyst, researcher or writer — each with its own small tool set and the same approval rules. |
 | ✋ **Asks before acting** | Approval cards show exactly what will change (which files, which rows). Allow once / for this task / deny. Stop interrupts even a model mid-answer. |
 | ◇ **Canvas** | n8n-style node editor: triggers (manual, watch folder, daily, every N min), vision, Decide, If, model, tool, agent, crew, note steps. Live run highlighting. |
@@ -37,6 +39,7 @@ flowchart LR
     T --> FS[(Desktop · Documents · Downloads · workspace)]
     A --> O[Ollama: Qwen3-VL · Gemma 4 · SmolVLM2 …]
     S --> W[Workflow engine · automations] --> G
+    P[Phone browser · Wi-Fi] -. QR code · secret · LAN only .-> L[Phone link server<br/>inbox / share folders] --> G
     A --> DB[(SQLite: chats · traces · incidents · lessons)]
     W --> V[(Versioned workflows)]
 ```
@@ -63,6 +66,17 @@ flowchart TD
 ```
 
 More diagrams (request sequence, safety layers, model routing, learning loop, code map): **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+
+## Everyday use
+
+**[docs/USAGE.md](docs/USAGE.md)** — what to type for files, Excel, clean-up, drives, phone over Wi-Fi / Bluetooth / USB,
+Canvas bots and automations, with what happens at each step.
+
+<img src="docs/screenshots/phone-link.png" alt="Phone link page on Android" width="260" align="right">
+
+**Phone over Wi-Fi in 3 steps:** sidebar **📱 Phone** → *Start Wi-Fi link* → scan the QR code with the phone's camera.
+Pick photos/videos → each one is verified on the PC → the page says when they're safe to delete from your Gallery.
+Then on the PC: `delete duplicates in From phone`, `organize From phone by month`.
 
 ## Quick start (Windows)
 

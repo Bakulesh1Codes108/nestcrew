@@ -62,6 +62,12 @@ permissions:
   drive_space: allow
   phone_list: allow
   phone_copy: ask                   # copies from the phone; never deletes on it
+  phone_link_start: ask             # opens the Wi-Fi link (secret QR code, your network only)
+  phone_link_stop: allow
+  phone_link_status: allow
+  send_to_phone: ask
+  bluetooth_send: ask
+  bluetooth_receive: ask
   find_files: allow
   read_excel: allow
   copy_files: ask
@@ -74,6 +80,13 @@ permissions:
 # Folders agents may work in (besides the workspace). Hidden/system folders are always refused.
 rpa:
   folders: [desktop, documents, downloads, pictures, videos, music, drives]   # drives = D:, E:, USB, SD (not C:)
+
+phonelink:                          # Wi-Fi phone link (off until you start it)
+  port: 8766
+  inbox: Downloads/From phone       # phone -> PC files land here, one folder per day
+  share: Desktop/Send to phone      # PC -> phone: the phone can download only what is in here
+  idle_minutes: 30                  # switches itself off when unused
+  max_hours: 3
 
 safety:
   permission_timeout: 300               # seconds to wait for your answer, then auto-deny

@@ -192,6 +192,7 @@ table.tl{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px;whit
     <button data-view="canvas"><span class="ic">◇</span>Canvas</button>
     <button data-view="brain"><span class="ic">◎</span>Brain</button>
     <button data-view="incidents"><span class="ic">⚠</span>Incidents<span class="badge" id="incbadge" style="display:none"></span></button>
+    <button data-view="phone"><span class="ic">📱</span>Phone</button>
     <button data-view="autos"><span class="ic">⏱</span>Automations</button>
     <button data-view="models"><span class="ic">▣</span>Models</button>
     <button data-view="guide"><span class="ic">?</span>Guide</button>
@@ -271,6 +272,17 @@ table.tl{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px;whit
   <section class="view" id="v-brain"><div class="scroll"><div class="col" id="brain"></div></div></section>
   <section class="view" id="v-run"><div class="scroll"><div class="col" id="rundetail"></div></div></section>
   <section class="view" id="v-incidents"><div class="scroll"><div class="col" id="incidents"></div></div></section>
+  <section class="view" id="v-phone"><div class="scroll"><div class="col">
+    <h2 class="sec">Phone link — share files with your phone</h2>
+    <p class="note"><b>Wi-Fi</b> (fast): phone and PC on the same Wi-Fi. Press Start, scan the QR code with the phone's camera, and a page opens in its browser — no app to install. Send photos/videos/files to the PC (each one verified, then it tells you when they're safe to delete from the Gallery), and download what you put in <i>Send to phone</i>. Only devices on your network with the code can use it; it stops by itself after 30 idle minutes.</p>
+    <div id="plink"></div>
+    <h2 class="sec" style="margin-top:22px">Bluetooth</h2>
+    <p class="note">Slower (about 1–2 MB/s) but needs no Wi-Fi. Opens Windows' own Bluetooth file transfer.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn2" id="btrecv">Receive from phone</button><button class="btn2" id="btsend">Send to phone</button></div>
+    <p class="note" id="btmsg"></p>
+    <h2 class="sec" style="margin-top:22px">Or just ask in Chat</h2>
+    <p class="note"><code>connect my phone over wifi</code> · <code>send Desktop/Reports to my phone</code> · <code>receive photos from my phone via bluetooth</code> · <code>organize From phone by month</code> · <code>delete duplicates in From phone</code></p>
+  </div></div></section>
   <section class="view" id="v-autos"><div class="scroll"><div class="col"><h2 class="sec">Automations</h2>
     <p class="note">Recipes from <code>automations.yaml</code> plus Canvas workflows with a folder, time or interval trigger. They run while NestCrew is open. Unattended runs may only use tools listed as pre-approved — everything else is denied. "Run now" asks you in chat as usual.</p>
     <div id="autolist"></div></div></div></section>
@@ -335,13 +347,39 @@ async function stream(url, body, onEv, signal){
 function show(v){
   view=v; $$(".view").forEach(x=>x.classList.toggle("on",x.id==="v-"+v));
   $$(".nav button").forEach(b=>b.classList.toggle("on",b.dataset.view===v));
-  const titles={canvas:"Canvas · visual automations",brain:"Brain · what NestCrew has learned",incidents:"Incidents",autos:"Automations",models:"Models",guide:"Guide",run:"Run details"};
+  const titles={canvas:"Canvas · visual automations",brain:"Brain · what NestCrew has learned",incidents:"Incidents",phone:"Phone link",autos:"Automations",models:"Models",guide:"Guide",run:"Run details"};
   $("#title").textContent=titles[v]||chatTitle;
-  ({canvas:loadCanvas,brain:loadBrain,incidents:loadIncidents,autos:loadAutos,models:loadModels,guide:loadGuide}[v]||(()=>{}))();
+  ({canvas:loadCanvas,brain:loadBrain,incidents:loadIncidents,phone:loadPhone,autos:loadAutos,models:loadModels,guide:loadGuide}[v]||(()=>{}))();
 }
 $$(".nav button").forEach(b=>b.onclick=()=>show(b.dataset.view));
 $("#ptoggle").onclick=()=>{ const p=$("#panel"); if(innerWidth<1150) p.classList.toggle("force"); else p.classList.toggle("hide"); };
 $("#newchat").onclick=()=>{ session=newId(); chatTitle="New chat"; images=[]; $("#thumb").textContent=""; welcome(); renderLast5(); $("#title").textContent=chatTitle; resetProgress(); show("chat"); loadRecent(); };
+
+/* ---------------------------------------------------------------- phone link */
+let phoneTimer=null;
+async function loadPhone(){
+  clearTimeout(phoneTimer);
+  let s; try{ s=await api("/api/phonelink"); }catch(e){ $("#plink").innerHTML=`<p class="note">${esc(e.message)}</p>`; return; }
+  if(!s.on){ $("#plink").innerHTML=`<button class="btn2 pri" id="plstart">Start Wi-Fi link</button>
+      <p class="note">Phone → PC files go to <b>${esc(s.inbox)}</b> · PC → phone files come from <b>${esc(s.share)}</b>${s.received?` · ${s.received} file(s) received this session`:""}</p>`;
+    $("#plstart").onclick=async()=>{ $("#plstart").disabled=true; $("#plstart").textContent="Starting…";
+      try{ await api("/api/phonelink/start",{}); }catch(e){ toast(e.message); } loadPhone(); };
+  } else {
+    $("#plink").innerHTML=`<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start">
+      <div style="background:#fff;padding:8px;border-radius:12px;width:220px;height:220px">${s.qr||""}</div>
+      <div style="flex:1;min-width:240px"><p style="margin:0 0 6px"><b>On.</b> Scan with the phone's camera, or type in its browser:</p>
+      <p><code style="word-break:break-all">${esc(s.url)}</code></p>
+      <p class="note">Received: <b>${s.received}</b> file(s), ${esc(s.received_bytes)} → ${esc(s.inbox)} · downloads by the phone: ${s.downloads} · switches off in ~${s.stops_in_min} min if unused.<br>
+      ${s.recent.map(x=>"✓ "+esc(x)).join("<br>")}</p>
+      <button class="btn2" id="plstop">Stop link</button>
+      <p class="note">Phone can't open it? Same Wi-Fi on both, and allow Python on <i>private</i> networks if Windows Firewall asks.</p></div></div>`;
+    const svg=$("#plink svg"); if(svg){ svg.setAttribute("width","204"); svg.setAttribute("height","204"); }
+    $("#plstop").onclick=async()=>{ await api("/api/phonelink/stop",{}); loadPhone(); };
+    if(view==="phone") phoneTimer=setTimeout(loadPhone,4000);
+  }
+}
+$("#btrecv").onclick=async()=>{ try{ const r=await api("/api/phonelink/bluetooth",{mode:"receive"}); $("#btmsg").textContent=r.text; }catch(e){ $("#btmsg").textContent=e.message; } };
+$("#btsend").onclick=async()=>{ try{ const r=await api("/api/phonelink/bluetooth",{mode:"send"}); $("#btmsg").textContent=r.text; }catch(e){ $("#btmsg").textContent=e.message; } };
 
 /* ---------------------------------------------------------------- status + recent */
 async function status(){
@@ -523,7 +561,8 @@ $("#stop").onclick=()=>{ if(chatAbort){ chatAbort.abort(); return; } if(runId) a
 const PERM={write_file:"save a file",run_command:"run a command",web_fetch:"open a web page",look_at_screen:"take a screenshot",
   copy_files:"copy files",move_files:"move files",make_folder:"create a folder",rename_file:"rename a file",
   write_excel:"write an Excel file",append_excel_rows:"add rows to a spreadsheet",undo_last_move:"undo the last move",
-  recycle_files:"send files to the Recycle Bin",organize_folder:"sort files into folders",phone_copy:"copy files from your phone"};
+  recycle_files:"send files to the Recycle Bin",organize_folder:"sort files into folders",phone_copy:"copy files from your phone",
+  phone_link_start:"open the Wi-Fi phone link",send_to_phone:"share files with your phone",bluetooth_send:"send files by Bluetooth",bluetooth_receive:"receive files by Bluetooth"};
 async function runStream(url,body,onNode){
   let answerBox=null, traceId=null, n=0;
   resetProgress({"/api/agent":"Agent","/api/crew":"Crew","/api/video":"Video","/api/workflows/run":"Workflow"}[url]||"Automation");
@@ -837,7 +876,7 @@ addEventListener("keydown",e=>{ if(view!=="canvas"||/INPUT|TEXTAREA|SELECT/.test
   if(e.key==="Delete"||e.key==="Backspace"){ if(selEdge!==null){ WF.edges.splice(selEdge,1); selEdge=null; dirty=true; drawWF(); } else if(selNode) delNode(selNode); } });
 function delNode(id){ const n=WF.nodes.find(x=>x.id===id); if(n?.type==="trigger"){ toast("Every workflow needs its Trigger"); return; }
   WF.nodes=WF.nodes.filter(x=>x.id!==id); WF.edges=WF.edges.filter(e=>e.from!==id&&e.to!==id); selNode=null; dirty=true; drawWF(); }
-const ALL_TOOLS=["drive_space","phone_list","phone_copy","scan_folder","find_duplicates","recycle_files","organize_folder","find_folder","list_folder","find_files","copy_files","move_files","make_folder","rename_file","read_excel","write_excel","append_excel_rows","read_text","calculator","current_time","list_files","read_file","write_file","web_search","web_fetch","delegate","run_command"],
+const ALL_TOOLS=["drive_space","phone_list","phone_copy","phone_link_status","send_to_phone","scan_folder","find_duplicates","recycle_files","organize_folder","find_folder","list_folder","find_files","copy_files","move_files","make_folder","rename_file","read_excel","write_excel","append_excel_rows","read_text","calculator","current_time","list_files","read_file","write_file","web_search","web_fetch","delegate","run_command"],
       PREAPPROVE=["copy_files","move_files","recycle_files","organize_folder","phone_copy","make_folder","rename_file","write_excel","append_excel_rows","write_file","web_fetch","run_command"];
 const field=(label,html)=>`<label>${label}${html}</label>`;
 async function showHistory(){

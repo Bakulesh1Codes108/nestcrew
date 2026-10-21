@@ -33,7 +33,8 @@ DEFAULT_PERMISSIONS = {
     # RPA: looking is free, every change asks (see rpa.py)
     "list_folder": "allow", "find_folder": "allow", "scan_folder": "allow", "find_duplicates": "allow",
     "recycle_files": "ask", "organize_folder": "ask", "drive_space": "allow", "phone_list": "allow",
-    "phone_copy": "ask", "find_files": "allow", "file_info": "allow", "read_text": "allow",
+    "phone_copy": "ask", "phone_link_start": "ask", "phone_link_stop": "allow", "phone_link_status": "allow",
+    "send_to_phone": "ask", "bluetooth_send": "ask", "bluetooth_receive": "ask", "find_files": "allow", "file_info": "allow", "read_text": "allow",
     "read_excel": "allow", "delegate": "allow",
     "make_folder": "ask", "copy_files": "ask", "move_files": "ask", "rename_file": "ask",
     "write_excel": "ask", "append_excel_rows": "ask", "undo_last_move": "ask",

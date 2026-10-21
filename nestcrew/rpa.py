@@ -39,8 +39,9 @@ BLOCKED_PARTS = {".ssh", ".gnupg", ".aws", ".azure", "appdata", ".env", ".git", 
                  "windows", "program files", "program files (x86)", "programdata", "system32"}
 MAX_FILES = 20000          # big jobs are done in batches (see cleanup.batches)
 CHANGE_TOOLS = {"make_folder", "copy_files", "move_files", "rename_file", "write_excel",
-                "append_excel_rows", "undo_last_move", "recycle_files", "organize_folder", "phone_copy"}
-READ_TOOLS = {"drive_space", "phone_list", "scan_folder", "find_duplicates", "find_folder", "list_folder", "find_files", "file_info", "read_text", "read_excel"}
+                "append_excel_rows", "undo_last_move", "recycle_files", "organize_folder", "phone_copy",
+                "phone_link_start", "send_to_phone", "bluetooth_send", "bluetooth_receive"}
+READ_TOOLS = {"phone_link_status", "drive_space", "phone_list", "scan_folder", "find_duplicates", "find_folder", "list_folder", "find_files", "file_info", "read_text", "read_excel"}
 
 
 # ------------------------------------------------------------------ paths ----
@@ -538,7 +539,9 @@ def preview(tool_name: str, args: dict) -> str:
     """What the permission card shows: the exact files that will be affected."""
     try:
         from . import cleanup, devices
-        extra_preview = cleanup.preview(tool_name, args) or devices.preview(tool_name, args)
+        from . import phonelink
+        extra_preview = (cleanup.preview(tool_name, args) or devices.preview(tool_name, args)
+                         or phonelink.preview(tool_name, args))
         if extra_preview:
             return extra_preview
         if tool_name in ("copy_files", "move_files"):
@@ -596,7 +599,8 @@ SPECIALISTS = {
                 "duplicates to the Recycle Bin, sort files by type or month, and move big sets in batches.",
                 "tools": ["scan_folder", "find_duplicates", "find_folder", "list_folder", "find_files",
                           "recycle_files", "organize_folder", "move_files", "copy_files", "make_folder",
-                          "undo_last_move", "drive_space", "phone_list", "phone_copy"]},
+                          "undo_last_move", "drive_space", "phone_list", "phone_copy", "phone_link_start",
+                          "phone_link_status", "send_to_phone", "bluetooth_send", "bluetooth_receive"]},
     "excel_analyst": {"role": "Excel analyst", "goal": "Read spreadsheets, calculate totals, and write or append rows.",
                       "tools": ["list_folder", "find_files", "read_excel", "write_excel", "append_excel_rows",
                                 "calculator"]},
@@ -790,7 +794,51 @@ _SPACE = re.compile(r"\b(?:how\s+much|free|left|check|show|full)\b.*\b(?:space|s
                     re.I)
 
 
+_PH = r"(?:my\s+|the\s+)?(?:phone|mobile|smartphone|android|iphone)"
+_BT = re.compile(r"\bblue\s?tooth\b", re.I)
+_WIFI = re.compile(r"\b(?:wi-?fi|wireless|wlan|hotspot|network|phone\s+link)\b", re.I)
+_TO_PHONE = re.compile(r"^\s*(?:please\s+)?(?:send|share|give|put|transfer|copy)\s+(?P<src>.+?)\s+(?:to|with|onto|on)\s+"
+                       + _PH + r"(?:\s+(?:via|over|using|by|through|with)\s+(?:the\s+)?(?:wi-?fi|wireless|bluetooth|link))?"
+                       r"\s*[.!]?\s*$", re.I)
+_FROM_PHONE = re.compile(r"\b(?:receive|get|accept|take|send|transfer|share|copy|move|backup|back\s+up|import)\b.*"
+                         r"\b(?:from|off|of)\s+" + _PH + r"\b", re.I)
+_LINK_ON = re.compile(r"\b(?:connect|link|pair|start|open|turn\s+on)\b.*\b(?:phone|mobile|android|iphone)\b|"
+                      r"\b(?:share|transfer|send)\s+(?:files?\s+)?between\s+" + _PH, re.I)
+_LINK_OFF = re.compile(r"\b(?:stop|close|end|turn\s+off|switch\s+off|disconnect)\b.*\b(?:phone\s+link|phone|link)\b", re.I)
+_LINK_STATUS = re.compile(r"\bwhat\s+(?:did|has)\s+" + _PH + r"\s+sen[dt]\b|\bphone\s+link\s+status\b", re.I)
+
+
+def _link_plan(text: str) -> list[dict] | None:
+    """Wi-Fi / Bluetooth sharing with the phone."""
+    if _LINK_STATUS.search(text):
+        return [{"tool": "phone_link_status", "input": {}}]
+    if _LINK_OFF.search(text) and (_WIFI.search(text) or "link" in text.lower() or "disconnect" in text.lower()):
+        return [{"tool": "phone_link_stop", "input": {}}]
+    m = _TO_PHONE.match(text)
+    if m and not re.match(r"^(?:the\s+|my\s+|all\s+|some\s+)?(?:files?|photos?|pictures?|videos?|stuff|things)$",
+                          m.group("src").strip(), re.I):
+        src = _place(m.group("src"), None)
+        if _BT.search(text):
+            return [{"tool": "bluetooth_send", "input": {"source": src}}]
+        return [{"tool": "send_to_phone", "input": {"source": src}}, {"tool": "phone_link_start", "input": {}}]
+    if _BT.search(text) and re.search(r"\b(?:phone|mobile|android|iphone)\b", text, re.I):
+        if _FROM_PHONE.search(text) or re.search(r"\b(?:receive|accept|get)\b", text, re.I):
+            return [{"tool": "bluetooth_receive", "input": {}}]
+        return [{"tool": "bluetooth_send", "input": {}}]
+    if _WIFI.search(text) and re.search(r"\b(?:phone|mobile|android|iphone)\b", text, re.I) and \
+            not _LINK_OFF.search(text):
+        return [{"tool": "phone_link_start", "input": {}}]
+    if _LINK_ON.search(text) and not re.search(r"\busb\b|\bcable\b", text, re.I):
+        return [{"tool": "phone_link_start", "input": {}}]
+    if re.search(r"\b(?:receive|accept)\b.*\bfrom\s+" + _PH, text, re.I):
+        return [{"tool": "phone_link_start", "input": {}}]
+    return None
+
+
 def _device_plan(text: str) -> list[dict] | None:
+    plan = _link_plan(text)
+    if plan:
+        return plan
     m = _PHONE_COPY.match(text) or _PHONE_COPY2.match(text)
     if m:
         kinds = {(m.group("kind") or "").lower(), (m.group("kind2") or "").lower()} - {""}
@@ -885,3 +933,4 @@ def quick_plan(task: str) -> list[dict] | None:
 
 from . import cleanup  # noqa: E402,F401  (registers the clean-up tools)
 from . import devices  # noqa: E402,F401  (drives and phones)
+from . import phonelink  # noqa: E402,F401  (Wi-Fi / Bluetooth phone link)

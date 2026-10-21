@@ -188,6 +188,16 @@ If the phone isn't found: unlock it and pick **File transfer** in the USB notifi
 the Windows drive C: itself is never a target): `how much space is left on my drives`,
 `scan E drive`, `move all videos from E:/DCIM to Videos/Camera`, `copy everything from D drive/Old photos to Pictures/Old`.
 
+### Phone link — Wi-Fi and Bluetooth
+
+Sidebar **📱 Phone**. **Wi-Fi** (fast): *Start Wi-Fi link* → scan the QR code with the phone → a page opens in the
+phone's browser: send photos/videos/files to the PC (each verified; then it says they're safe to delete from the
+Gallery) and download what's in `Desktop/Send to phone`. Files arrive in `Downloads/From phone/<date>`.
+Only devices on your own network with the QR's secret code can use it; it stops after 30 idle minutes.
+**Bluetooth** (slow): *Receive from phone* / *Send to phone* open Windows' own Bluetooth transfer.
+In chat: `connect my phone over wifi`, `send Reports to my phone`, `receive photos from my phone via bluetooth`,
+`stop phone link`. Full list: `docs/USAGE.md`.
+
 ### Plain file commands run exactly
 
 Commands like these are understood without the model guessing, and still show you an approval card:
