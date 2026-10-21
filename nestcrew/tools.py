@@ -215,8 +215,12 @@ def run_tool(name: str, args: dict) -> str:
         return f"Error: unknown tool '{name}'. Available: {', '.join(REGISTRY)}"
     if t.needs_internet and not is_online():
         return "Error: this tool needs internet and you're offline."
+    from .providers import Cancelled
+    from .safety import Stopped
     try:
         return t.fn(**(args or {}))
+    except (Stopped, Cancelled):          # you pressed Stop: stop everything, don't report it as an error
+        raise
     except TypeError as e:
         return f"Error: wrong arguments for {name}. Expected {t.args}. ({e})"
     except Exception as e:  # report to the model so it can recover

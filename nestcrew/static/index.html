@@ -393,6 +393,8 @@ function welcome(){
     <button data-p="Extract vendor, date and total from this invoice" data-m="chat" data-a="1">🧾 Read an invoice<small>Attach a photo · document model</small></button>
     <button data-p="How many people are visible?" data-m="video" data-a="1">🎬 Count people in a video<small>Video mode · chart + CSV</small></button>
     <button data-p="Every morning, summarise my notes folder into a briefing" data-m="canvas">◇ Automate a daily task<small>Drafts a workflow on the Canvas</small></button>
+    <button data-p="clean up my Downloads" data-m="agent">🧹 Clean up Downloads<small>Junk + duplicates → Recycle Bin, asks first</small></button>
+    <button data-p="organize Downloads by type" data-m="agent">🗂 Sort a folder by type<small>Images · Videos · Documents… (undo-able)</small></button>
   </div></div>`;
   $$(".starters button").forEach(b=>b.onclick=()=>{
     if(b.dataset.m==="canvas"){ newWorkflowFromText(b.dataset.p); return; }
@@ -520,7 +522,8 @@ $("#stop").onclick=()=>{ if(chatAbort){ chatAbort.abort(); return; } if(runId) a
 /* shared runner for agent / crew / video / workflow / automation */
 const PERM={write_file:"save a file",run_command:"run a command",web_fetch:"open a web page",look_at_screen:"take a screenshot",
   copy_files:"copy files",move_files:"move files",make_folder:"create a folder",rename_file:"rename a file",
-  write_excel:"write an Excel file",append_excel_rows:"add rows to a spreadsheet",undo_last_move:"undo the last move"};
+  write_excel:"write an Excel file",append_excel_rows:"add rows to a spreadsheet",undo_last_move:"undo the last move",
+  recycle_files:"send files to the Recycle Bin",organize_folder:"sort files into folders",phone_copy:"copy files from your phone"};
 async function runStream(url,body,onNode){
   let answerBox=null, traceId=null, n=0;
   resetProgress({"/api/agent":"Agent","/api/crew":"Crew","/api/video":"Video","/api/workflows/run":"Workflow"}[url]||"Automation");
@@ -834,8 +837,8 @@ addEventListener("keydown",e=>{ if(view!=="canvas"||/INPUT|TEXTAREA|SELECT/.test
   if(e.key==="Delete"||e.key==="Backspace"){ if(selEdge!==null){ WF.edges.splice(selEdge,1); selEdge=null; dirty=true; drawWF(); } else if(selNode) delNode(selNode); } });
 function delNode(id){ const n=WF.nodes.find(x=>x.id===id); if(n?.type==="trigger"){ toast("Every workflow needs its Trigger"); return; }
   WF.nodes=WF.nodes.filter(x=>x.id!==id); WF.edges=WF.edges.filter(e=>e.from!==id&&e.to!==id); selNode=null; dirty=true; drawWF(); }
-const ALL_TOOLS=["list_folder","find_files","copy_files","move_files","make_folder","rename_file","read_excel","write_excel","append_excel_rows","read_text","calculator","current_time","list_files","read_file","write_file","web_search","web_fetch","delegate","run_command"],
-      PREAPPROVE=["copy_files","move_files","make_folder","rename_file","write_excel","append_excel_rows","write_file","web_fetch","run_command"];
+const ALL_TOOLS=["drive_space","phone_list","phone_copy","scan_folder","find_duplicates","recycle_files","organize_folder","find_folder","list_folder","find_files","copy_files","move_files","make_folder","rename_file","read_excel","write_excel","append_excel_rows","read_text","calculator","current_time","list_files","read_file","write_file","web_search","web_fetch","delegate","run_command"],
+      PREAPPROVE=["copy_files","move_files","recycle_files","organize_folder","phone_copy","make_folder","rename_file","write_excel","append_excel_rows","write_file","web_fetch","run_command"];
 const field=(label,html)=>`<label>${label}${html}</label>`;
 async function showHistory(){
   const I=$("#insp"); if(!WF?.id){ toast("Save the workflow first — then every save is kept as a version"); return; }

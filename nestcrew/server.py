@@ -154,7 +154,10 @@ def chat(body: ChatIn):
     except ProviderError as e:
         raise HTTPException(400, str(e))
     msgs = [{"role": "system", "content": "You are NestCrew, a helpful assistant running "
-             "on the user's own laptop. Be concise. If an image is attached, answer about that image."}]
+             "on the user's own laptop. Be concise. If an image is attached, answer about that image. "
+             "NestCrew CAN work on the user's files and folders, but only in Agent mode: if they ask you to "
+             "move, copy, clean, sort or delete files, never say you can't access them - say "
+             "\"Press Switch to Agent (or pick Agent) and I'll do it, asking you before each change.\""}]
     msgs += memory.history(body.session)
     images = list(body.images)
     if images:
@@ -790,7 +793,7 @@ def _ensure_python_deps():
     import importlib.util
     import subprocess
     import sys
-    missing = [pkg for mod, pkg in (("openpyxl", "openpyxl>=3.1"),) if importlib.util.find_spec(mod) is None]
+    missing = [pkg for mod, pkg in (("openpyxl", "openpyxl>=3.1"), ("send2trash", "send2trash>=1.8")) if importlib.util.find_spec(mod) is None]
     if missing:
         r = subprocess.run([sys.executable, "-m", "pip", "install", "-q", *missing], capture_output=True,
                            creationflags=0x08000000 if sys.platform == "win32" else 0)

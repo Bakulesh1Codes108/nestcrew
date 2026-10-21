@@ -2,6 +2,8 @@
 switches fit it. Decided by System 1 (fast, no text generation)."""
 from __future__ import annotations
 
+import re
+
 from . import system1
 
 TASK_TYPES: dict[str, dict] = {
@@ -68,7 +70,7 @@ TASK_TYPES: dict[str, dict] = {
         "keywords": ["file", "files", "folder", "folders", "move", "copy", "desktop", "downloads", "documents",
                      "organise", "organize", "rename", "pdfs", "photos", "list"],
         "mode": "agent", "model_task": "agent", "weight": 1.3,
-        "tip": "Agent mode with file tools. Looking is automatic; every copy, move or new folder asks you first, and nothing is ever deleted.",
+        "tip": "Agent mode with file tools. Looking is automatic; every copy, move, sort or clean-up asks you first, and 'delete' only ever means the Recycle Bin.",
     },
     "excel": {
         "label": "Excel / CSV",
@@ -121,10 +123,13 @@ def hint(text: str, has_image: bool = False) -> dict:
     from . import models
     if len(text.strip()) < 4:
         return {}
-    from .rpa import quick_plan
+    from .rpa import looks_like_file_action, quick_plan
     if not has_image and quick_plan(text):            # a plain file command: certain, no model needed
         r = {"label": "files", "confidence": 0.99, "method": "rule",
              "probs": {"files": 0.99, "excel": 0.005, "chat": 0.005}}
+    elif not has_image and looks_like_file_action(text) and not re.search(r"\b(xlsx|excel|csv|sheet)\b", text, re.I):
+        r = {"label": "files", "confidence": 0.9, "method": "rule",   # doing something to files -> agent
+             "probs": {"files": 0.9, "excel": 0.05, "chat": 0.05}}
     else:
         r = classify(text)
     kind = r["label"]

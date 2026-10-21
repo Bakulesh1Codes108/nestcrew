@@ -11,6 +11,7 @@ rem (NestCrew also starts Ollama itself if needed)
 if exist "%LOCALAPPDATA%\Programs\Ollama\ollama.exe" set "PATH=%LOCALAPPDATA%\Programs\Ollama;%PATH%"
 rem new features may need a small package (Excel support)
 ".venv\Scripts\python.exe" -c "import openpyxl" >nul 2>nul || ".venv\Scripts\python.exe" -m pip install -q "openpyxl>=3.1"
+".venv\Scripts\python.exe" -c "import send2trash" >nul 2>nul || ".venv\Scripts\python.exe" -m pip install -q "send2trash>=1.8"
 rem already running? just open the window
 powershell -NoProfile -Command "try{Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8765/ -TimeoutSec 2 | Out-Null; exit 0}catch{exit 1}" >nul 2>nul
 if not errorlevel 1 (

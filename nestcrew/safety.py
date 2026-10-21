@@ -31,7 +31,9 @@ DEFAULT_PERMISSIONS = {
     "look_at_screen": "ask",
     "run_command": "ask",      # always confirm commands
     # RPA: looking is free, every change asks (see rpa.py)
-    "list_folder": "allow", "find_folder": "allow", "find_files": "allow", "file_info": "allow", "read_text": "allow",
+    "list_folder": "allow", "find_folder": "allow", "scan_folder": "allow", "find_duplicates": "allow",
+    "recycle_files": "ask", "organize_folder": "ask", "drive_space": "allow", "phone_list": "allow",
+    "phone_copy": "ask", "find_files": "allow", "file_info": "allow", "read_text": "allow",
     "read_excel": "allow", "delegate": "allow",
     "make_folder": "ask", "copy_files": "ask", "move_files": "ask", "rename_file": "ask",
     "write_excel": "ask", "append_excel_rows": "ask", "undo_last_move": "ask",
@@ -78,7 +80,8 @@ def redact(text: str) -> str:
 
 
 UNTRUSTED_TOOLS = {"web_search", "web_fetch", "read_file", "run_command", "look_at_screen",
-                   "read_text", "read_excel", "list_folder", "find_files", "find_folder"}
+                   "read_text", "read_excel", "list_folder", "find_files", "find_folder",
+                   "scan_folder", "find_duplicates", "phone_list"}
 
 
 def wrap_untrusted(tool: str, result: str) -> str:

@@ -55,6 +55,13 @@ permissions:
   # RPA (files, folders, Excel): looking is automatic, every change asks you
   list_folder: allow
   find_folder: allow
+  scan_folder: allow
+  find_duplicates: allow
+  recycle_files: ask                # to the Recycle Bin, after you see the list
+  organize_folder: ask
+  drive_space: allow
+  phone_list: allow
+  phone_copy: ask                   # copies from the phone; never deletes on it
   find_files: allow
   read_excel: allow
   copy_files: ask
@@ -66,7 +73,7 @@ permissions:
 
 # Folders agents may work in (besides the workspace). Hidden/system folders are always refused.
 rpa:
-  folders: [desktop, documents, downloads, pictures, videos, music]
+  folders: [desktop, documents, downloads, pictures, videos, music, drives]   # drives = D:, E:, USB, SD (not C:)
 
 safety:
   permission_timeout: 300               # seconds to wait for your answer, then auto-deny

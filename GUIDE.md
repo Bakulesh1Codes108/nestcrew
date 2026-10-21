@@ -147,6 +147,47 @@ Rules that keep your files safe:
 - Moves and renames can be undone: ask "undo the last move".
 - Excel files are backed up to `workspace/.backups` before they change.
 
+### Clean up folders, phones and drives
+
+Type it in Chat — anything that *does* something to files runs as an Agent automatically.
+Looking is instant; every change shows you the exact files first; "delete" always means the
+**Windows Recycle Bin** (you can restore), never a permanent delete.
+
+| You type | What happens |
+|---|---|
+| `make BIRAC2 folder clean` / `clean up my Downloads` | scan → recycle junk (temp files, half downloads, `~$` lock files, empty files) → recycle duplicate copies (the oldest copy is kept) → recycle empty folders. One approval card per step; steps with nothing to do are skipped |
+| `scan Downloads` / `what is taking space in Downloads` | size by type, largest files, duplicates and how much they'd free, junk, empty folders, files untouched for a year |
+| `find duplicates in Pictures` / `delete duplicates in Pictures` | exact copies only (same content, checked byte by byte), whatever their names |
+| `organize Downloads by type` | sorts into Images, Videos, Audio, Documents, Archives, Apps, Other — `undo last move` puts everything back |
+| `sort the files in Pictures by month` | 2025-03, 2025-04 … folders (by year: `… by year`) |
+| `move all photos from Downloads to Pictures/Phone` | photos = jpg, jpeg, png, heic, webp, raw…; also `videos`, `music`, `documents`, `screenshots`, `screen recordings`, `pdfs` |
+
+**Big jobs run in batches** sized to the files (about 200 files or 1 GB per batch: thousands of
+photos go 200 at a time, big videos a few at a time). The Progress panel shows *Batch 3/12*, **Stop**
+works between batches, and a stopped move can still be undone.
+
+**Several folders, subfolders:** `move all photos from Downloads and Desktop including subfolders to Pictures/Sorted`
+gathers from both (hidden/system folders like `.git`, `AppData`, `$Recycle.Bin` are skipped). Same names
+from different folders are kept side by side as `IMG_1.jpg` and `IMG_1 (2).jpg` — nothing is overwritten.
+Copies run 4 at a time; a move on the same drive is an instant rename.
+
+**Phone (USB, "File transfer")** — Windows shows the phone under This PC without a drive letter;
+NestCrew reaches it the same way File Explorer does:
+
+| You type | What happens |
+|---|---|
+| `show my phone` | the phone's name, storage and folders (read-only) |
+| `backup my phone` / `copy photos and videos from my phone` | copies DCIM to `Pictures/Phone backup`, 50 files per batch, skipping ones already copied — run it again any time to pick up only new photos |
+| `copy my phone camera photos to D drive/Phone` | only `DCIM/Camera`, photos only |
+| `move videos off my phone to Desktop/Phone videos` | still **copies** — nothing on the phone is ever deleted. Check the copies, then free space in the phone's Gallery |
+
+Then tidy the copy on the PC: `clean Phone backup`, `organize Phone backup by month`, `delete duplicates in Phone backup`.
+If the phone isn't found: unlock it and pick **File transfer** in the USB notification.
+
+**Other drives** (D:, E:, SD card, USB stick) are allowed out of the box (`drives` in `rpa.folders`;
+the Windows drive C: itself is never a target): `how much space is left on my drives`,
+`scan E drive`, `move all videos from E:/DCIM to Videos/Camera`, `copy everything from D drive/Old photos to Pictures/Old`.
+
 ### Plain file commands run exactly
 
 Commands like these are understood without the model guessing, and still show you an approval card:
@@ -159,7 +200,7 @@ Commands like these are understood without the model guessing, and still show yo
 | `create a folder called Reports 2026 on my desktop` | makes the folder |
 
 If a name exists in two places (say Desktop/Reports and Documents/Reports), NestCrew asks which one instead of guessing.
-For anything else (summarise, fill an Excel, sort by date) the agent plans with the model and can search with **find_folder**.
+For anything else (summarise, fill an Excel, sort by date) the agent plans with the model and can search with **find_folder** — or hand big clean-ups to the **Cleaner** specialist.
 
 **Updates:** when NestCrew's files change, a bar says *NestCrew was updated* — press **Restart now**.
 (Closing only the app window leaves NestCrew running in its black window; close that window to quit fully.)

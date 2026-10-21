@@ -54,8 +54,11 @@ class Agent:
                      "Write paths like Desktop/BIRAC or Documents/report.xlsx. Look first (list_folder) "
                      "before changing anything. Copy/move whole folders with pattern \"*\". "
                      "If you don't know where a folder is, search for it with find_folder.")
+        if "scan_folder" in names:
+            head += ("\nTo clean or free up space: scan_folder first, then recycle_files (duplicates, junk, "
+                     "empty_folders) and organize_folder. Deleting always means the Recycle Bin.")
         if "delegate" in names:
-            head += ("\nFor a big job you may delegate parts to a specialist (file_clerk, excel_analyst, "
+            head += ("\nFor a big job you may delegate parts to a specialist (file_clerk, cleaner, excel_analyst, "
                      "researcher, writer); for a simple step, just use the tool yourself.")
         return head + "\n\n" + PROTOCOL.replace("{tools}", tool_txt)
 
@@ -132,21 +135,34 @@ class Agent:
         plan = quick_plan(task) if not images else None
         if plan and all(st["tool"] in allowed for st in plan):
             audit(run=gate.run_id, agent=self.role, event="quick_plan", steps=[st["tool"] for st in plan])
-            from .rpa import resolve_path
+            from .rpa import resolve_path, split_sources
             for st in plan:                    # check the folders before asking you anything
                 for key in ("source", "destination", "path"):
                     if key in st["input"]:
                         try:
-                            resolve_path(st["input"][key])
+                            for one in split_sources(st["input"][key]) if key == "source" else [st["input"][key]]:
+                                resolve_path(one)
                         except ValueError as e:
                             return finish(f"I stopped: {e}")
-            result = ""
+            from .cleanup import nothing_to_do
+            from .rpa import READ_TOOLS
+            result, summary = "", []
             for i, st in enumerate(plan, 1):
                 gate.check_stop()
+                skip = nothing_to_do(st["tool"], st["input"])
+                if skip:                       # e.g. no duplicates: don't ask you about nothing
+                    emit({"type": "tool", "agent": self.role, "step": i, "thought": "Nothing to change",
+                          "tool": st["tool"], "input": st["input"], "result": skip})
+                    summary.append(skip)
+                    continue
                 result = do_tool(i, st["tool"], st["input"], "Standard file task - exact steps")
                 if result.startswith("Error") or result.startswith("No files"):
-                    return finish(f"I stopped: {result.removeprefix('Error: ')}")
-            return finish(result.split(":\n")[0] + ".")     # the step above already lists every file
+                    done = " ".join(x for x in summary if x)
+                    return finish(f"I stopped: {result.removeprefix('Error: ')}" + (f" (Done before that: {done})" if done else ""))
+                if st["tool"] not in READ_TOOLS or len(plan) == 1:
+                    summary.append(result if len(plan) == 1 and st["tool"] in READ_TOOLS
+                                   else result.split(":\n")[0].rstrip(".") + ".")   # the step lists every file
+            return finish(" ".join(summary) or result)
 
         for step in range(1, steps + 1):
             gate.check_stop()
