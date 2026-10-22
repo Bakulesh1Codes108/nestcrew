@@ -36,7 +36,7 @@ and every finished task can be saved as a visual, versioned workflow.
 | 🪙 **Tokens for plain file commands** | **0** — copy / move / clean / sort / phone backup become exact steps in **< 1 ms** without calling a model (a model step reads ~1.6k tokens) |
 | ⚡ **Batch file speed** | **2,000 photos (400 MB) copied in ~1.1 s**, moved in 0.5 s · byte-exact duplicate scan of 2,285 files in 0.5 s *(2-vCPU benchmark)* |
 | 🧠 **Footprint** | 256M–2B vision models (0.3–2.4 GB) · Whisper voice ~150 MB · MiniLM router 46 MB · runs on an 8 GB laptop |
-| ✅ **Quality** | **312 offline tests**, CI on Windows + Linux · every file change approval-gated · Recycle Bin only · nothing ever overwritten |
+| ✅ **Quality** | **323 offline tests**, CI on Windows + Linux · every file change approval-gated · Recycle Bin only · nothing ever overwritten |
 
 How each number was measured, live laptop numbers, and a roadmap of ways to improve: **[docs/METRICS.md](docs/METRICS.md)** ·
 reproduce with `python scripts/benchmark.py`.

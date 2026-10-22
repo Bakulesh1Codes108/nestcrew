@@ -29,6 +29,32 @@ class ProviderError(RuntimeError):
 CANCEL: contextvars.ContextVar[threading.Event | None] = contextvars.ContextVar("nestcrew_cancel", default=None)
 
 
+def local_url(url: str) -> str:
+    """'localhost' -> 127.0.0.1: Windows may try IPv6 (::1) first, where Ollama doesn't listen."""
+    import re
+    return re.sub(r"//localhost(?=[:/]|$)", "//127.0.0.1", url)
+
+
+# Local services (Ollama, Laya) are reached directly: a VPN or system proxy setting must never
+# route 127.0.0.1 traffic through a proxy (that showed up as "Ollama is not running").
+LOCAL = {"trust_env": False}
+
+OLLAMA_DROPPED = ("Ollama stopped in the middle of this task (it may have run out of memory or restarted for an "
+                  "update). NestCrew has started it again - press Retry, or pick a smaller model on the Models page.")
+OLLAMA_GONE = ("Ollama isn't answering and NestCrew couldn't start it. Open 'Ollama' from the Start menu "
+               "(or reinstall it from ollama.com), then try again - NestCrew reconnects by itself.")
+_LOADED = {"model": None}
+
+
+def _recover_ollama() -> bool:
+    """Ollama dropped: start it again (if needed) and wait until it answers."""
+    try:
+        from .models import ensure_ollama
+        return ensure_ollama(wait=45)
+    except Exception:
+        return False
+
+
 class Cancelled(ProviderError):
     pass
 
@@ -78,7 +104,7 @@ class OllamaProvider(Provider):
     name = "local"
 
     def __init__(self, cfg: dict):
-        self.base = cfg.get("base_url", "http://localhost:11434").rstrip("/")
+        self.base = local_url(cfg.get("base_url", "http://127.0.0.1:11434")).rstrip("/")
         self.model = cfg.get("model", "gemma4:e4b")
         self.fallback_model = cfg.get("fallback_model")
         self.options = {
@@ -122,16 +148,16 @@ class OllamaProvider(Provider):
         return body
 
     def _post(self, body):
-        r = httpx.post(f"{self.base}/api/chat", json=body, timeout=TIMEOUT)
+        r = httpx.post(f"{self.base}/api/chat", json=body, timeout=TIMEOUT, **LOCAL)
         if r.status_code == 400 and "think" in r.text.lower() and "think" in body:
             self._no_think_param.add(body["model"])
             body.pop("think")
-            r = httpx.post(f"{self.base}/api/chat", json=body, timeout=TIMEOUT)
+            r = httpx.post(f"{self.base}/api/chat", json=body, timeout=TIMEOUT, **LOCAL)
         return r
 
     def installed_models(self) -> list[str]:
         try:
-            r = httpx.get(f"{self.base}/api/tags", timeout=3)
+            r = httpx.get(f"{self.base}/api/tags", timeout=6, **LOCAL)
             return [m["name"] for m in r.json().get("models", [])]
         except Exception:
             return []
@@ -176,18 +202,31 @@ class OllamaProvider(Provider):
         if not got:                                    # empty reply: try once more
             yield from self._stream(messages, False)
 
+    def _unload_others(self, model: str) -> None:
+        """Only one model in memory at a time on a laptop: free the previous one before loading another."""
+        prev = _LOADED["model"]
+        _LOADED["model"] = model
+        if prev and prev != model:
+            try:
+                httpx.post(f"{self.base}/api/generate", json={"model": prev, "keep_alive": 0}, timeout=10, **LOCAL)
+            except Exception:
+                pass
+
     def _stream(self, messages, json_mode, budget=None):
         model = self._pick_model()
         body = self._body(messages, True, json_mode, model, budget)
         cancel = CANCEL.get()
         self.last_thinking = ""
         thinking = []
-        for attempt in (1, 2):
+        self._unload_others(model)
+        recovered = False
+        for attempt in range(1, 5):
+            got_any = False
             try:
-                with httpx.stream("POST", f"{self.base}/api/chat", json=body, timeout=TIMEOUT) as r:
+                with httpx.stream("POST", f"{self.base}/api/chat", json=body, timeout=TIMEOUT, **LOCAL) as r:
                     if r.status_code != 200:
                         text = r.read().decode("utf-8", "replace")
-                        if attempt == 1 and r.status_code == 400 and "think" in text.lower() and "think" in body:
+                        if r.status_code == 400 and "think" in text.lower() and "think" in body:
                             self._no_think_param.add(model)
                             body.pop("think")
                             continue
@@ -206,14 +245,25 @@ class OllamaProvider(Provider):
                             self.last_thinking = "".join(thinking)
                         piece = msg.get("content", "")
                         if piece:
+                            got_any = True
                             yield piece
                         if chunk.get("done"):
                             break
                     return
-            except httpx.ConnectError as e:
-                raise ProviderError("Ollama is not running. Start it with: ollama serve") from e
+            except (httpx.ConnectError, httpx.RemoteProtocolError, httpx.ReadError) as e:
+                # Ollama crashed, ran out of memory or is restarting (updates): bring it back and retry.
+                if got_any or recovered:
+                    raise ProviderError(OLLAMA_DROPPED) from e
+                recovered = True
+                if cancel is not None and cancel.is_set():
+                    raise Cancelled("Stopped by you.") from e
+                if not _recover_ollama():
+                    raise ProviderError(OLLAMA_GONE) from e
+                _LOADED["model"] = model
+                continue
             except httpx.TimeoutException as e:
                 raise ProviderError("The model took too long to answer - try a smaller model on the Models page.") from e
+        raise ProviderError(OLLAMA_GONE)
 
 
 def _answer_from_thinking(thinking: str, json_mode: bool) -> str:

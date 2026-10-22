@@ -853,13 +853,15 @@ async function loadModels(){
   const dl=d.downloads||{}, busyDl=Object.values(dl).some(x=>x.state==="queued"||x.state==="downloading");
   const recSize=(d.recommended||[]).map(id=>d.models.find(m=>m.id===id)).filter(Boolean);
   $("#mbar").innerHTML=!d.ollama_up
-    ?`<div class="vcard" style="border-color:#c0392b"><b>⚠ Ollama isn't answering</b> — it runs the local models. The list below shows what was downloaded last time.<br>
-       <button class="btn2 pri" id="ollstart" style="margin-top:6px">Start Ollama</button> <span class="note" id="ollmsg"></span></div>`
+    ?`<div class="vcard" style="border-color:#c0392b"><b>⚠ Ollama isn't answering</b> — it runs the local models. The list below shows what was downloaded last time. NestCrew checks every 30 s and starts it by itself.<br>
+       <button class="btn2 pri" id="ollstart" style="margin-top:6px">Start Ollama</button> <button class="btn2" id="ollrestart" style="margin-top:6px">Restart Ollama (if frozen)</button> <span class="note" id="ollmsg"></span></div>`
     :recSize.length?`<div class="vcard"><button class="btn2 pri" id="pullall">Download all for this PC (${recSize.length})</button>
        <span class="note"> ${recSize.map(m=>esc(m.name)+" "+esc(m.download)).join(" · ")} — one at a time in the background; you can close this page.</span></div>`
     :busyDl?"":`<p class="note">✓ Every model that suits this PC is downloaded.</p>`;
   if($("#ollstart")) $("#ollstart").onclick=async()=>{ $("#ollstart").disabled=true; $("#ollmsg").textContent="Starting… (up to 20 s)";
     try{ const r=await api("/api/ollama/start",{}); $("#ollmsg").textContent=r.message; }catch(e){ $("#ollmsg").textContent=e.message; } loadModels(); status(); };
+  if($("#ollrestart")) $("#ollrestart").onclick=async()=>{ if(!confirm("Stop Ollama and start it again? Your downloaded models stay.")) return; $("#ollrestart").disabled=true; $("#ollmsg").textContent="Restarting… (up to 45 s)";
+    try{ const r=await api("/api/ollama/restart",{}); $("#ollmsg").textContent=r.message; }catch(e){ $("#ollmsg").textContent=e.message; } loadModels(); status(); };
   if($("#pullall")) $("#pullall").onclick=async()=>{ $("#pullall").disabled=true; try{ await api("/api/models/pull_all",{}); }catch(e){ toast(e.message); } loadModels(); };
   clearTimeout(loadModels._t); if(busyDl&&view==="models") loadModels._t=setTimeout(()=>{ loadModels(); status(); },3000);
   const fitTag={easy:'<span class="tag ok">light for this PC</span>',ok:'<span class="tag">fine for this PC</span>',heavy:'<span class="tag warn">heavy for this PC</span>'};

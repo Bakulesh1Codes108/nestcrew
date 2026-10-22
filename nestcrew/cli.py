@@ -55,7 +55,7 @@ def doctor(_):
     models = local.installed_models()
     print(f"Mode:          {cfg.get('mode')}")
     print(f"Internet:      {'online' if is_online() else 'offline'}")
-    print(f"Ollama:        {'running' if models else 'NOT running (start: ollama serve)'}")
+    print(f"Ollama:        {'running' if models else 'NOT answering (open Ollama from the Start menu; NestCrew also starts it)'}")
     print(f"Local model:   {local.model} "
           f"{'(installed)' if any(m.startswith(local.model) for m in models) else '(missing: ollama pull ' + local.model + ')'}")
     if models:

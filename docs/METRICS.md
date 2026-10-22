@@ -66,7 +66,7 @@ laptop, Windows 11, 8–16 GB RAM, CPU only.
 
 | | |
 |---|---|
-| Automated tests | **312**, offline (scripted stand-in models), CI on **Windows + Linux**, Python 3.11 + 3.12 |
+| Automated tests | **323**, offline (scripted stand-in models), CI on **Windows + Linux**, Python 3.11 + 3.12 |
 | Approval coverage | 100% of file changes show the exact files before anything happens |
 | Deletes | Windows Recycle Bin only; nothing on a phone is ever deleted |
 | Overwrites | never — clashes become `name (2).ext`, identical copies are skipped |

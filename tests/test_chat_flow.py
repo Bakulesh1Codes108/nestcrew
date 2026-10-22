@@ -95,7 +95,7 @@ class _R:
 def test_think_false_sent_and_retried_without_it(monkeypatch):
     bodies = []
 
-    def fake_stream(method, url, json=None, timeout=None):
+    def fake_stream(method, url, json=None, timeout=None, **kw):
         bodies.append(dict(json))
         if "think" in json:
             return _R(400, text='{"error":"model does not support thinking"}')

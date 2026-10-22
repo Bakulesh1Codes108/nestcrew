@@ -398,12 +398,22 @@ def models_downloads():
     return models.queue_state()
 
 
+@app.post("/api/ollama/restart")
+def ollama_restart():
+    """You pressed 'Restart Ollama' (it was frozen): stop it and start it again; models stay."""
+    from . import models
+    up = models.restart_ollama()
+    return {"up": up, "message": "Ollama restarted." if up else
+            "Couldn't restart Ollama. Restart the PC, or reinstall Ollama from ollama.com."}
+
+
 @app.post("/api/ollama/start")
 def ollama_start():
     from . import models
     up = models.ensure_ollama(wait=20)
-    return {"up": up, "message": "Ollama is running." if up else
-            "Couldn't start Ollama. Open the Ollama app from the Start menu, or reinstall it from ollama.com."}
+    return {"up": up, "stuck": bool(models.OLLAMA.get("stuck")), "message": "Ollama is running." if up else
+            ("Ollama is running but not answering (frozen) - press Restart Ollama." if models.OLLAMA.get("stuck") else
+             "Couldn't start Ollama. Open the Ollama app from the Start menu, or reinstall it from ollama.com.")}
 
 
 @app.post("/api/models/assign")
@@ -811,6 +821,9 @@ def _start_automations():
     _runner = Runner()
     _runner.start()
     threading.Thread(target=_ensure_ollama, daemon=True).start()
+    if load_config().get("local", {}).get("watchdog", True):
+        from . import models
+        models.watchdog()                    # restarts Ollama if it stops while NestCrew is open
     threading.Thread(target=_ensure_python_deps, daemon=True).start()
     if system1.engine() == "laya":
         threading.Thread(target=system1.start_laya, daemon=True).start()

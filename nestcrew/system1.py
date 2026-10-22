@@ -69,9 +69,10 @@ def embed(texts: list[str]) -> list[list[float]] | None:
         return None
     todo = [t for t in dict.fromkeys(texts) if t not in _cache]
     if todo:
-        base = load_config().get("local", {}).get("base_url", "http://localhost:11434").rstrip("/")
+        from .providers import local_url
+        base = local_url(load_config().get("local", {}).get("base_url", "http://127.0.0.1:11434")).rstrip("/")
         try:
-            r = httpx.post(f"{base}/api/embed", json={"model": model_name(), "input": todo,
+            r = httpx.post(f"{base}/api/embed", trust_env=False, json={"model": model_name(), "input": todo,
                                                       "keep_alive": "30m"}, timeout=20)
             vecs = r.json().get("embeddings") if r.status_code == 200 else None
         except (httpx.HTTPError, ValueError):
@@ -139,7 +140,7 @@ def server_up(name: str) -> bool:
     if not c.get("url"):
         return False
     try:
-        r = httpx.get(c["url"].rstrip("/") + "/health", timeout=1.0)
+        r = httpx.get(c["url"].rstrip("/") + "/health", timeout=1.0, trust_env=False)
         return r.status_code < 500
     except httpx.HTTPError:
         return False
@@ -151,7 +152,7 @@ def _systemone(name: str, text: str, qname: str, question: dict) -> dict | None:
     body = {"state": text, "model": c.get("model", ""), "questions": {qname: question}}
     headers = {"Authorization": f"Bearer {c['api_key']}"} if c.get("api_key") else {}
     try:
-        r = httpx.post(c["url"].rstrip("/") + "/v1/systemone", json=body, timeout=30, headers=headers)
+        r = httpx.post(c["url"].rstrip("/") + "/v1/systemone", json=body, timeout=30, headers=headers, trust_env=False)
         if r.status_code != 200:
             audit(event="systemone_error", engine=name, status=r.status_code, detail=r.text[:200])
             return None

@@ -18,7 +18,7 @@ import httpx
 import yaml
 
 from .config import ROOT, load_config, resolve
-from .providers import OllamaProvider, OpenAICompatProvider, Provider, ProviderError
+from .providers import LOCAL, OllamaProvider, OpenAICompatProvider, Provider, ProviderError
 
 TASKS = ["chat", "agent", "screen", "video", "documents", "image"]
 TASK_HELP = {
@@ -79,7 +79,7 @@ def _ollama() -> OllamaProvider:
     return OllamaProvider(load_config().get("local", {}))
 
 
-OLLAMA = {"up": None, "checked": 0.0}
+OLLAMA = {"up": None, "checked": 0.0, "stuck": False}
 
 
 def _tags_cache() -> Path:
@@ -92,7 +92,7 @@ def ollama_tags(timeout: float = 6.0) -> tuple[bool, set[str]]:
     import time
     base = _ollama().base
     try:
-        r = httpx.get(f"{base}/api/tags", timeout=timeout)
+        r = httpx.get(f"{base}/api/tags", timeout=timeout, **LOCAL)
         tags = {m["name"] for m in r.json().get("models", [])}
         OLLAMA.update(up=True, checked=time.time())
         try:
@@ -113,16 +113,41 @@ def _installed_tags() -> set[str]:
     return ollama_tags()[1]
 
 
-def ensure_ollama(wait: float = 0.0) -> bool:
-    """Start Ollama in the background if it isn't answering (finds it even if PATH isn't set)."""
+def _ollama_exe() -> str | None:
     import os
     import shutil as sh
-    import time
-    if ollama_tags(2)[0]:
-        return True
-    exe = sh.which("ollama") or next((p for p in [
+    return sh.which("ollama") or next((p for p in [
         os.path.expandvars(r"%LOCALAPPDATA%\Programs\Ollama\ollama.exe"),
         "/usr/local/bin/ollama", "/opt/homebrew/bin/ollama"] if os.path.exists(p)), None)
+
+
+def _port_open() -> bool:
+    """Something is listening on Ollama's port (even if it doesn't answer)."""
+    import socket
+    from urllib.parse import urlparse
+    u = urlparse(_ollama().base)
+    with socket.socket() as s:
+        s.settimeout(1)
+        return s.connect_ex((u.hostname or "127.0.0.1", u.port or 11434)) == 0
+
+
+def ensure_ollama(wait: float = 0.0) -> bool:
+    """Start Ollama in the background if it isn't answering (finds it even if PATH isn't set).
+    If Ollama is already running but busy/restarting, just wait for it - starting a second
+    copy fails ('Only one usage of each socket address')."""
+    import os
+    import time
+    if ollama_tags(3)[0]:
+        return True
+    if _port_open():                       # running but busy (loading a model / updating): wait
+        end = time.time() + max(wait, 3)
+        while time.time() < end:
+            time.sleep(1)
+            if ollama_tags(3)[0]:
+                return True
+        OLLAMA["stuck"] = True
+        return False
+    exe = _ollama_exe()
     if not exe:
         return False
     env = {**os.environ, "OLLAMA_MAX_LOADED_MODELS": "1", "OLLAMA_NUM_PARALLEL": "1"}
@@ -134,8 +159,49 @@ def ensure_ollama(wait: float = 0.0) -> bool:
     while time.time() < end:
         time.sleep(0.5)
         if ollama_tags(2)[0]:
+            OLLAMA["stuck"] = False
             return True
     return ollama_tags(2)[0]
+
+
+def restart_ollama(wait: float = 45) -> bool:
+    """'Restart Ollama' button: stop a frozen Ollama and start it again (your models stay)."""
+    import subprocess as sp
+    import sys
+    import time
+    from .safety import audit
+    if sys.platform == "win32":
+        for name in ("ollama.exe", "ollama app.exe"):
+            sp.run(["taskkill", "/IM", name, "/F"], capture_output=True, creationflags=0x08000000)
+    else:
+        sp.run(["pkill", "-f", "ollama serve"], capture_output=True)
+    audit(event="ollama_restart")
+    for _ in range(20):                     # wait for the port to be free
+        if not _port_open():
+            break
+        time.sleep(0.5)
+    OLLAMA["stuck"] = False
+    return ensure_ollama(wait=wait)
+
+
+def watchdog(every: float = 30.0) -> None:
+    """Background check while NestCrew is open: if Ollama stopped (crash, low memory, update),
+    start it again so the next task just works."""
+    import threading
+    import time
+
+    def loop():
+        while True:
+            time.sleep(every)
+            try:
+                up, _ = ollama_tags(4)
+                if not up and not _port_open():
+                    from .safety import audit
+                    audit(event="ollama_watchdog_restart")
+                    ensure_ollama(wait=30)
+            except Exception:
+                pass
+    threading.Thread(target=loop, daemon=True, name="ollama-watchdog").start()
 
 
 def is_installed(entry: dict, have: set[str] | None = None) -> bool:
@@ -323,7 +389,7 @@ def pull(model_id: str) -> Iterator[dict]:
     base = _ollama().base
     try:
         with httpx.stream("POST", f"{base}/api/pull", json={"model": e["tag"], "stream": True},
-                          timeout=httpx.Timeout(10, read=None)) as r:
+                          timeout=httpx.Timeout(10, read=None), **LOCAL) as r:
             for line in r.iter_lines():
                 if not line:
                     continue
@@ -332,8 +398,9 @@ def pull(model_id: str) -> Iterator[dict]:
                     raise ProviderError(d["error"])
                 pct = round(100 * d["completed"] / d["total"]) if d.get("total") and d.get("completed") else None
                 yield {"status": d.get("status", ""), "percent": pct}
-    except httpx.ConnectError as err:
-        raise ProviderError("Ollama is not running. Start it with: ollama serve") from err
+    except (httpx.ConnectError, httpx.RemoteProtocolError, httpx.ReadError) as err:
+        from .providers import OLLAMA_GONE
+        raise ProviderError(OLLAMA_GONE) from err
     yield {"status": "ready", "done": True}
 
 
@@ -341,7 +408,7 @@ def remove(model_id: str) -> None:
     e = catalog()["models"].get(model_id)
     if not e or e.get("backend") != "ollama":
         raise ProviderError("Only Ollama models can be removed here.")
-    r = httpx.request("DELETE", f"{_ollama().base}/api/delete", json={"model": e["tag"]}, timeout=30)
+    r = httpx.request("DELETE", f"{_ollama().base}/api/delete", json={"model": e["tag"]}, timeout=30, **LOCAL)
     if r.status_code not in (200, 404):
         raise ProviderError(f"Couldn't remove: {r.text[:200]}")
 

@@ -24,7 +24,7 @@ def laya(monkeypatch, tmp_path):
     monkeypatch.setattr(workflows, "_dir", lambda: (tmp_path / "wf").mkdir(exist_ok=True) or tmp_path / "wf")
     monkeypatch.setattr(system1, "embed", lambda t: None)
 
-    def post(url, json=None, timeout=None, headers=None):
+    def post(url, json=None, timeout=None, headers=None, **kw):
         calls.append({"url": url, "body": json})
         (qid, q), = json["questions"].items()
         if q["type"] == "choice":
@@ -38,7 +38,7 @@ def laya(monkeypatch, tmp_path):
             ans = {"type": "score", "score": 1.49, "confidence": 0.6, "probabilities": {}, "legend": q["criteria"]}
         return Resp({"model": json["model"], "answers": {qid: ans}, "usage": {"input_tokens": 12, "output_tokens": 0}})
     monkeypatch.setattr(httpx, "post", post)
-    monkeypatch.setattr(httpx, "get", lambda url, timeout=None: Resp({"status": "ok"}))
+    monkeypatch.setattr(httpx, "get", lambda url, timeout=None, **kw: Resp({"status": "ok"}))
     return calls
 
 

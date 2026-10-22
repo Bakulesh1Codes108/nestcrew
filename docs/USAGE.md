@@ -122,6 +122,7 @@ Everything runs offline; cloud models are optional (keys in `.env`).
 | *NestCrew was updated — Restart now* | press it (closing only the window leaves the old one running) |
 | *NestCrew isn't running* right after a restart | wait ~30 s; it reloads by itself |
 | Phone can't open the link | same Wi-Fi? Windows Firewall → allow Python on Private networks; try `stop phone link` then start again |
+| "Ollama is not running" / `ollama serve` says *Only one usage of each socket address* | Ollama **is** running (that message means its port is taken by the running copy) — don't start a second one. NestCrew now reconnects by itself: if Ollama drops mid-task (low memory, auto-update) it starts it again and retries, and checks every 30 s. If it's frozen: Models → **Restart Ollama** |
 | Models all say "not downloaded" | Ollama isn't answering: Models → **Start Ollama**. Then **Download all for this PC** — downloads run one by one in the background |
 | 🎤 does nothing / "Microphone blocked" | allow the microphone for the NestCrew window (lock icon by the address); Windows Settings → Privacy → Microphone → allow desktop apps |
 | A task went to chat instead of doing it | press **Switch to Agent**, or pick **Agent** under the box |
